@@ -1,0 +1,40 @@
+services:
+  mysql:
+    image: mysql:8.4.6 # LTS vigente
+    container_name: mysql_db
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: root
+      MYSQL_DATABASE: usuarios
+      MYSQL_USER: first_user
+      MYSQL_PASSWORD: pass
+      TZ: America/Mexico_City
+      MYSQL_CHARACTER_SET_SERVER: utf8mb4
+      MYSQL_COLLATION_SERVER: utf8mb4_0900_ai_ci
+    ports:
+      - "3306:3306"
+    volumes:
+      - db_data:/var/lib/mysql
+      - ./src/main/resources/db:/docker-entrypoint-initdb.d
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+  springboot:
+    build:
+        context: .
+        dockerfile: Dockerfile
+    container_name: springboot_app
+    restart: unless-stopped
+    environment:
+      DB_HOST: mysql
+      TZ: America/Mexico_City
+    ports:
+      - "8080:8080"
+    depends_on:
+      mysql:
+        condition: service_healthy
+
+volumes:
+  db_data:
