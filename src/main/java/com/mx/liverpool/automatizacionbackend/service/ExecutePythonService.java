@@ -4,6 +4,8 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
+import java.io.File;
+
 @Service
 public class ExecutePythonService {
     private final String pythonPath;
@@ -17,24 +19,23 @@ public class ExecutePythonService {
     }
 
     public String executeApvScript() {
-        String scriptPath = projectDir + "/remisiones_kognivera.py";
-        return executePythonScript(scriptPath);
+        String module = "remisionesAPV.remisiones_kognivera";
+        return executePythonScript(module);
     }
 
     public String executeAtgScript() {
-        String scriptPath = projectDir + "/remisiones_kognivera.py";
-        return executePythonScript(scriptPath);
+        String module = "remisionesAPV.remisiones_kognivera";
+        return executePythonScript(module);
     }
 
-    private String executePythonScript(String scriptPath) {
+    private String executePythonScript(String module) {
         try {
-            ProcessBuilder processBuilder = new ProcessBuilder(pythonPath, scriptPath);
+            System.setProperty("user.dir", projectDir);
+            ProcessBuilder processBuilder = new ProcessBuilder(pythonPath, "-m", module);
+            processBuilder.directory(new File(projectDir));
             processBuilder.redirectErrorStream(true);
             Process process = processBuilder.start();
             int exitCode = process.waitFor();
-            if (exitCode != 0) {
-                throw new RuntimeException("Error al ejecutar el script de Python. Código de salida: " + exitCode);
-            }
 
             StringBuilder output = new StringBuilder();
             try (var reader = new java.io.BufferedReader(new java.io.InputStreamReader(process.getInputStream()))) {
@@ -43,7 +44,12 @@ public class ExecutePythonService {
                     output.append(line).append("\n");
                 }
 
-                return output.toString();
+                String outputStr = output.toString();
+                if (exitCode != 0) {
+                    throw new RuntimeException("Error al ejecutar el script de Python. Código de salida: " + exitCode + ". Salida: " + outputStr);
+                }
+
+                return outputStr;
             }
         } catch (Exception e) {
             throw new RuntimeException("Error al ejecutar el script de Python: " + e.getMessage(), e);
