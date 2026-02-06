@@ -73,13 +73,6 @@ mysql -u root -p < src/main/resources/db/script.sql
 4. Abrir el navegador y acceder a:
    - http://localhost:8080/swagger-ui/index.html
 
-## 📖 Visualizar actuadores
-Para visualizar los actuadores, puedes acceder a:
-- http://localhost:8080/secret
-Con las credenciales:
-- Usuario: `monitor`
-- Contraseña: `monitor`
-
 ## 📸 Documentación de la API
 Estas ligas deben estar bajo el rol administrador,
 por fines de desarrollo y pruebas se encuentra abierta
@@ -89,19 +82,3 @@ por fines de desarrollo y pruebas se encuentra abierta
 Si quieres importarlo en Postman, 
 puedes usar el siguiente enlace:
 - http://localhost:8080/v3/api-docs
-
-## 📸 Pantallas del funcionamiento
-### Obtener Usuarios:
-![img.png](img.png)
-
-### Obtener Usuario por ID:
-![img_1.png](img_1.png)
-
-### Eliminar Usuario:
-![img_2.png](img_2.png)
-
-### Crear Usuario:
-![img_3.png](img_3.png)
-
-### Actualizar Usuario:
-![img_4.png](img_4.png)

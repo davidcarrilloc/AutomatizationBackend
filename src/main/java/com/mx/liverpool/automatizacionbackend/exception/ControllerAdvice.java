@@ -17,24 +17,21 @@ public class ControllerAdvice {
     public ResponseEntity<?> handleCorreoExisteException(CorreoExisteException ex) {
         return ResponseEntity
                 .badRequest()
-                .body(Map.of(
-                        "error", ex.getMessage()));
+                .body(ex.getMessage());
     }
 
     @ExceptionHandler(ColoniaNoEncontradaException.class)
     public ResponseEntity<?> handleColoniaNoEncontradaException(ColoniaNoEncontradaException ex) {
         return ResponseEntity
                 .status(HttpStatus.NOT_FOUND)
-                .body(Map.of(
-                        "error", ex.getMessage()));
+                .body(ex.getMessage());
     }
 
     @ExceptionHandler(UsuarioNoEncontrado.class)
     public ResponseEntity<?> handleUsuarioNoEncontrado(UsuarioNoEncontrado ex) {
         return ResponseEntity
                 .status(HttpStatus.NOT_FOUND)
-                .body(Map.of(
-                        "error", ex.getMessage()));
+                .body(ex.getMessage());
     }
 
     @ExceptionHandler(MethodArgumentNotValidException.class)
@@ -57,24 +54,21 @@ public class ControllerAdvice {
     public ResponseEntity<?> handleNoResponseCopomexException(NoResponseCopomexException ex) {
         return ResponseEntity
                 .status(HttpStatus.INTERNAL_SERVER_ERROR)
-                .body(Map.of(
-                        "error", ex.getMessage()));
+                .body(ex.getMessage());
     }
 
     @ExceptionHandler(IllegalArgumentException.class)
     public ResponseEntity<?> handleIllegalArgumentException(IllegalArgumentException ex) {
         return ResponseEntity
                 .badRequest()
-                .body(Map.of(
-                        "error", ex.getMessage()));
+                .body(ex.getMessage());
     }
 
     @ExceptionHandler(CopomexNoDisponibleException.class)
     public ResponseEntity<?> handleCopomexNoDisponibleException(CopomexNoDisponibleException ex) {
         return ResponseEntity
                 .status(HttpStatus.SERVICE_UNAVAILABLE)
-                .body(Map.of(
-                        "error", ex.getMessage()));
+                .body(ex.getMessage());
     }
 
     @ExceptionHandler(WebClientRequestException.class)
@@ -89,15 +83,13 @@ public class ControllerAdvice {
     public ResponseEntity<?> handleWebClientRequestException(RuntimeException ex) {
         return ResponseEntity
                 .status(HttpStatus.INTERNAL_SERVER_ERROR)
-                .body(Map.of(
-                        "error", ex.getMessage()));
+                .body(ex.getMessage());
     }
 
     @ExceptionHandler(Exception.class)
     public ResponseEntity<?> handleWebClientRequestException(Exception ex) {
         return ResponseEntity
                 .status(HttpStatus.INTERNAL_SERVER_ERROR)
-                .body(Map.of(
-                        "error", ex.getMessage()));
+                .body(ex.getMessage());
     }
 }

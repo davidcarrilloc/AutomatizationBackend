@@ -11,8 +11,8 @@ public class OpenApiConfig {
     public OpenAPI customOpenAPI() {
         return new OpenAPI()
                 .info(new Info()
-                        .title("API de Usuarios")
+                        .title("API de VyE")
                         .version("1.0.0")
-                        .description("CRUD de Usuarios con integración COPOMEX"));
+                        .description("Automatizaciones de Venta y Entrega"));
     }
 }

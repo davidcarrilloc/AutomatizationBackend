@@ -1,7 +1,6 @@
 package com.mx.liverpool.automatizacionbackend.controller;
 
-import com.mx.liverpool.automatizacionbackend.service.ExecutePythonService;
-import com.mx.liverpool.automatizacionbackend.service.FileService;
+import com.mx.liverpool.automatizacionbackend.service.*;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -14,36 +13,85 @@ import org.springframework.web.multipart.MultipartFile;
 public class UploadController {
     private final FileService fileService;
     private final ExecutePythonService executePythonService;
+    private final CancelacionAtgMkpService cancelacionAtgMkpService;
+    private final CodigoDigitalService codigoDigitalService;
+    private final TxService txService;
+    private final ExcelService excelService;
 
-    @PostMapping("/apv")
+    @PostMapping(value = "/reprocesoMkpApv", consumes = {"multipart/form-data"})
     public ResponseEntity<?> uploadApvFile(@RequestParam("file") MultipartFile file) {
-        if (!isCSVFile(file.getOriginalFilename())) throw new IllegalArgumentException("Tipo de archivo inválido. Solo se permiten archivos CSV.");
+        if (isNotCSVFile(file.getOriginalFilename())) throw new IllegalArgumentException("Tipo de archivo inválido. Solo se permiten archivos CSV.");
         fileService.moveFileToProcessingApvDirectory(file);
         return ResponseEntity.ok(executePythonService.executeApvScript());
     }
 
-    @PostMapping("/atg")
+    @PostMapping(value = "/reprocesoMkpAtg", consumes = {"multipart/form-data"})
     public ResponseEntity<?> uploadAtgFile(@RequestParam("file") MultipartFile file) {
-        if (!isCSVFile(file.getOriginalFilename())) throw new IllegalArgumentException("Tipo de archivo inválido. Solo se permiten archivos CSV.");
+        if (isNotCSVFile(file.getOriginalFilename())) throw new IllegalArgumentException("Tipo de archivo inválido. Solo se permiten archivos CSV.");
         fileService.moveFileToProcessingAtgDirectory(file);
         return ResponseEntity.ok(executePythonService.executeAtgScript());
     }
 
-    @PostMapping("/cancelaciones")
-    public void uploadCancelacionesFile(@RequestParam("file") MultipartFile file) {
-        if (!isCSVFile(file.getOriginalFilename())) throw new IllegalArgumentException("Tipo de archivo inválido. Solo se permiten archivos CSV.");
-//        fileService.moveFileToProcessingCancelacionesDirectory(file);
-//        executePythonService.executeCancelacionesScript();
+    @PostMapping(value = "/cancelacionDevolucionMkpAtg", consumes = {"multipart/form-data"})
+    public ResponseEntity<?> uploadCancelacionDevolucionMkpAtg(@RequestParam("file") MultipartFile file) {
+        if (isNotCSVFile(file.getOriginalFilename())) throw new IllegalArgumentException("Tipo de archivo inválido. Solo se permiten archivos CSV.");
+        var rows = excelService.fromExcelToListOfRows(file, "1","1,2,3");
+        return ResponseEntity.ok(cancelacionAtgMkpService.executeCancelacionesProcess(file));
     }
 
-    @PostMapping("/remisionSinDatos")
+    @PostMapping(value = "/remisionSinDatos", consumes = {"multipart/form-data"})
     public void uploadRemisionSinDatosFile(@RequestParam("file") MultipartFile file) {
-        if (!isCSVFile(file.getOriginalFilename())) throw new IllegalArgumentException("Tipo de archivo inválido. Solo se permiten archivos CSV.");
+        if (isNotCSVFile(file.getOriginalFilename())) throw new IllegalArgumentException("Tipo de archivo inválido. Solo se permiten archivos CSV.");
 //        fileService.moveFileToProcessingRemisionSinDatosDirectory(file);
 //        executePythonService.executeRemisionSinDatosScript();
     }
 
-    private boolean isCSVFile(String fileName) {
-        return fileName != null && fileName.toLowerCase().endsWith(".csv");
+    @PostMapping(value = "/visualizarSoms", consumes = {"multipart/form-data"})
+    public void uploadVisualizarSoms(@RequestParam("file") MultipartFile file) {
+        if (isNotCSVFile(file.getOriginalFilename())) throw new IllegalArgumentException("Tipo de archivo inválido. Solo se permiten archivos CSV.");
+    }
+
+    @PostMapping(value = "/visualizarOms", consumes = {"multipart/form-data"})
+    public void uploadVisualizarOms(@RequestParam("file") MultipartFile file) {
+        if (isNotCSVFile(file.getOriginalFilename())) throw new IllegalArgumentException("Tipo de archivo inválido. Solo se permiten archivos CSV.");
+    }
+
+    @PostMapping(value = "/obtenerXmlSoms", consumes = {"multipart/form-data"})
+    public void uploadObtenerXmlSoms(@RequestParam("file") MultipartFile file) {
+        if (isNotCSVFile(file.getOriginalFilename())) throw new IllegalArgumentException("Tipo de archivo inválido. Solo se permiten archivos CSV.");
+    }
+
+    @PostMapping(value = "/obtenerXmlSterling", consumes = {"multipart/form-data"})
+    public void uploadObtenerXmlOms(@RequestParam("file") MultipartFile file) {
+        if (isNotCSVFile(file.getOriginalFilename())) throw new IllegalArgumentException("Tipo de archivo inválido. Solo se permiten archivos CSV.");
+    }
+
+    @PostMapping(value = "/suburbiaReproceso", consumes = {"multipart/form-data"})
+    public void uploadSuburbiaReproceso(@RequestParam("file") MultipartFile file) {
+        if (isNotCSVFile(file.getOriginalFilename())) throw new IllegalArgumentException("Tipo de archivo inválido. Solo se permiten archivos CSV.");
+    }
+
+    @PostMapping(value = "/codigosDigitales", consumes = {"multipart/form-data"})
+    public ResponseEntity<?> uploadCodigosDigitales(@RequestParam("file") MultipartFile file) {
+        if (isNotExcelFile(file.getOriginalFilename())) throw new IllegalArgumentException("Tipo de archivo inválido. Solo se permiten archivos Excel.");
+        return ResponseEntity.ok(codigoDigitalService.obtenerCodigosDigitales(
+                excelService.fromExcelToListOfRows(file, "1","1")
+                        .stream()
+                        .map(row -> String.valueOf(row.values()))
+                        .toList()
+        ));
+    }
+
+    @GetMapping("/obtenerDiferenciaTx")
+    public ResponseEntity<?> diferenciaTxHoyvsAyer() {
+        return ResponseEntity.ok(txService.obtenerDiferenciaTxHoyvsAyer());
+    }
+
+    private boolean isNotCSVFile(String fileName) {
+        return fileName == null || !fileName.toLowerCase().endsWith(".csv");
+    }
+
+    private boolean isNotExcelFile(String fileName) {
+        return fileName == null || !(fileName.toLowerCase().endsWith(".xlsx") || fileName.toLowerCase().endsWith(".xls"));
     }
 }

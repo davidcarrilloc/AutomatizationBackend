@@ -1,6 +1,5 @@
 package com.mx.liverpool.automatizacionbackend.service;
 
-import io.github.resilience4j.circuitbreaker.annotation.CircuitBreaker;
 import com.mx.liverpool.automatizacionbackend.exception.ColoniaNoEncontradaException;
 import com.mx.liverpool.automatizacionbackend.exception.CopomexNoDisponibleException;
 import com.mx.liverpool.automatizacionbackend.payload.response.DireccionCopomexResponse;
@@ -26,7 +25,6 @@ public class CopomexClient {
      * Completa la información de una dirección a partir de CP + colonia + calle + número.
      * @throws ColoniaNoEncontradaException si la colonia no pertenece al CP
      */
-    @CircuitBreaker(name = "copomex", fallbackMethod = "completarDireccionFallback")
     public Mono<DireccionCopomexResponse> completarDireccion(String codigoPostal,
                                                              String coloniaUsuario,
                                                              String calle,
