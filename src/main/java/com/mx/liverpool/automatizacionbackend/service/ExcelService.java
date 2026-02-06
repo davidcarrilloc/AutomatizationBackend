@@ -2,6 +2,7 @@ package com.mx.liverpool.automatizacionbackend.service;
 
 import org.apache.poi.ss.usermodel.*;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -13,6 +14,13 @@ import java.util.Map;
 
 @Service
 public class ExcelService {
+    private final DataFormatter dataFormatter;
+
+    @Autowired
+    public ExcelService(DataFormatter dataFormatter) {
+        this.dataFormatter = dataFormatter;
+    }
+
     public List<Map<Integer,String>> fromExcelToListOfRows(MultipartFile file, String numSheet, String numCol) {
         int[] habilitedCols = Arrays.stream(numCol.split(",")).mapToInt(Integer::parseInt).toArray();
         List<Map<Integer,String>> habilitedCells = new ArrayList<>();
@@ -25,7 +33,7 @@ public class ExcelService {
                 for (int colIndex : habilitedCols) {
                     Cell cell = row.getCell(colIndex);
                     if (cell != null) {
-                        habilitedCells.add(Map.of(colIndex,cell.getStringCellValue()));
+                        habilitedCells.add(Map.of(colIndex, dataFormatter.formatCellValue(cell)));
                     }
                 }
 

@@ -75,9 +75,9 @@ public class UploadController {
     public ResponseEntity<?> uploadCodigosDigitales(@RequestParam("file") MultipartFile file) {
         if (isNotExcelFile(file.getOriginalFilename())) throw new IllegalArgumentException("Tipo de archivo inválido. Solo se permiten archivos Excel.");
         return ResponseEntity.ok(codigoDigitalService.obtenerCodigosDigitales(
-                excelService.fromExcelToListOfRows(file, "1","1")
+                excelService.fromExcelToListOfRows(file, "0","0")
                         .stream()
-                        .map(row -> String.valueOf(row.values()))
+                        .map(row -> row.get(0))
                         .toList()
         ));
     }

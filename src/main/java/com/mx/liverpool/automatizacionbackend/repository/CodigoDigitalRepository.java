@@ -19,7 +19,7 @@ public class CodigoDigitalRepository {
     private final String consultaObtenerCodigosDigitales;
 
     @Autowired
-    public CodigoDigitalRepository(@Qualifier("bridgeCoreDataSource") DataSource namedParameterJdbcTemplate,
+    public CodigoDigitalRepository(@Qualifier("atgCoreDataSource") DataSource namedParameterJdbcTemplate,
                                    @Value("${consulta.obtener-codigos-digitales}") String consultaObtenerCodigosDigitales) {
         this.namedParameterJdbcTemplate = new NamedParameterJdbcTemplate(namedParameterJdbcTemplate);
         this.consultaObtenerCodigosDigitales = consultaObtenerCodigosDigitales;

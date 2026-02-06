@@ -1,12 +1,12 @@
 package com.mx.liverpool.automatizacionbackend.service;
 
 import com.mx.liverpool.automatizacionbackend.model.CodigoDigital;
-import com.mx.liverpool.automatizacionbackend.payload.response.CodigoDigitalResponse;
 import com.mx.liverpool.automatizacionbackend.repository.CodigoDigitalRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
+import java.util.Map;
 
 @Service
 public class CodigoDigitalService {
@@ -17,16 +17,23 @@ public class CodigoDigitalService {
         this.codigosDigitalesRepository = codigosDigitalesRepository;
     }
 
-    public String obtenerCodigosDigitales(List<String> referencias) {
+    public Map<?,?> obtenerCodigosDigitales(List<String> referencias) {
         List<CodigoDigital> codigosDigitales = codigosDigitalesRepository.obtenerCodigosDigitales(referencias);
         List<String> noEncontrados = buscarReferenciasNoEncontradas(referencias, codigosDigitales);
-        return null;
+        return Map.of(
+                "codigosDigitales", codigosDigitales.stream()
+                        .map(cd -> Map.of(
+                                "refTransId", cd.getRefTransId(),
+                                "codigo", cd.getCodigo()
+                        ))
+                        .toList(),
+                "noEncontrados", noEncontrados
+        );
     }
 
     private List<String> buscarReferenciasNoEncontradas(List<String> referencias, List<CodigoDigital> codigoDigitales) {
-        return codigoDigitales.stream()
-                .map(CodigoDigital::getRefTransId)
-                .filter(refTransId -> !referencias.contains(refTransId))
+        return referencias.stream()
+                .filter(ref -> codigoDigitales.stream().noneMatch(cd -> cd.getRefTransId().equals(ref)))
                 .toList();
     }
 }
