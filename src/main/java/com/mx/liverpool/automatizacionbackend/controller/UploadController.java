@@ -34,9 +34,10 @@ public class UploadController {
 
     @PostMapping(value = "/cancelacionDevolucionMkpAtg", consumes = {"multipart/form-data"})
     public ResponseEntity<?> uploadCancelacionDevolucionMkpAtg(@RequestParam("file") MultipartFile file) {
-        if (isNotCSVFile(file.getOriginalFilename())) throw new IllegalArgumentException("Tipo de archivo inválido. Solo se permiten archivos CSV.");
-        var rows = excelService.fromExcelToListOfRows(file, "1","1,2,3");
-        return ResponseEntity.ok(cancelacionAtgMkpService.executeCancelacionesProcess(file));
+        if (isNotExcelFile(file.getOriginalFilename())) throw new IllegalArgumentException("Tipo de archivo inválido. Solo se permiten archivos Excel.");
+        return ResponseEntity.ok(cancelacionAtgMkpService.executeCancelacionesProcess(
+                excelService.fromExcelToListOfRows(file, "0","0,1,2,7")
+        ));
     }
 
     @PostMapping(value = "/remisionSinDatos", consumes = {"multipart/form-data"})
