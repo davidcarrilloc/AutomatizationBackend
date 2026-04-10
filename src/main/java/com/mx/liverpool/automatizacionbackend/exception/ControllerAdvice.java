@@ -97,6 +97,9 @@ public class ControllerAdvice {
     public ResponseEntity<?> handleWebClientRequestException(TxNotFound ex) {
         return ResponseEntity
                 .status(HttpStatus.NOT_FOUND)
-                .body(ex.getMessage());
+                .body(Map.of(
+                        "codigoRetorno", "206",
+                        "mensaje", "Order and Shipping group not available"
+                ));
     }
 }
