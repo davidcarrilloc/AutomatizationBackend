@@ -6,15 +6,11 @@ import lombok.NoArgsConstructor;
 @Data
 @NoArgsConstructor
 public class ItemsResponse {
-    private String idSku;
-    private String couponId;
-    private Boolean descuentoDe1erDiaAplicado;
-    private Double descuentoDe1erDia;
+    private Long idSku;
     private Integer cantidad;
     private Double descuentoCasa;
     private Double descuentoFijo;
     private Double descuentoPorcentual;
-    private Boolean flete;
     private String idPromo;
     private Double importeTotal;
     private Boolean isGift;
@@ -22,10 +18,9 @@ public class ItemsResponse {
     private Double precioLista;
     private Double precioVenta;
     private Boolean promoMed;
-    private String promoMedType;
-    private String promoMedValue;
+    private Integer promoMedType;
+    private Double promoMedValue;
     private String skuDescription;
     private Double totalDescuento;
-    private Boolean empleado;
-    private Boolean esFlete;
+    private Boolean flete;
 }

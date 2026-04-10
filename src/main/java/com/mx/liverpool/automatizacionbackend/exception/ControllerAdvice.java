@@ -92,4 +92,11 @@ public class ControllerAdvice {
                 .status(HttpStatus.INTERNAL_SERVER_ERROR)
                 .body(ex.getMessage());
     }
+
+    @ExceptionHandler(TxNotFound.class)
+    public ResponseEntity<?> handleWebClientRequestException(TxNotFound ex) {
+        return ResponseEntity
+                .status(HttpStatus.NOT_FOUND)
+                .body(ex.getMessage());
+    }
 }

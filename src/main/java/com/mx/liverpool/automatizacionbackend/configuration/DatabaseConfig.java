@@ -24,6 +24,18 @@ public class DatabaseConfig {
         return new JdbcTemplate(ds);
     }
 
+    @Primary
+    @Bean(name = "bridgeCoreQA2DataSource")
+    @ConfigurationProperties(prefix = "bridgecore-qa2.datasource")
+    public DataSource bridgeCoreQA2DataSource() {
+        return DataSourceBuilder.create().build();
+    }
+
+    @Bean(name = "bridgeCoreQA2JdbcTemplate")
+    public JdbcTemplate bridgeCoreQA2JdbcTemplate(@Qualifier("bridgeCoreQA2DataSource") DataSource ds) {
+        return new JdbcTemplate(ds);
+    }
+
     @Bean(name = "atgCoreDataSource")
     @ConfigurationProperties(prefix = "atgcore.datasource")
     public DataSource atgCoreDataSource() {

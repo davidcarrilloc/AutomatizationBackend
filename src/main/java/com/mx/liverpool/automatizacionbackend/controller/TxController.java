@@ -18,6 +18,8 @@ public class TxController {
     @PostMapping("/detalleTx")
     public ResponseEntity<?> detalleTx(@RequestBody DetalleTxRequest request) {
         log.info("Entrando a detalleTx");
-        return ResponseEntity.ok(txService.obtenerDetalleTx(request.getAtgOrderId(), request.getAtgShippingGroupId()));
+        return ResponseEntity.ok(
+                txService.obtenerDetalleTx(request.getAtgOrderId(), request.getAtgShippingGroupId(), request.getSource())
+        );
     }
 }

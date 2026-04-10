@@ -9,15 +9,16 @@ import java.util.List;
 @Data
 @NoArgsConstructor
 public class CobroResponse {
-    private String bcTransactionId;
+    private Integer bcTransactionId;
+    private Integer certificado;
     private String noPedido;
-    private String numeroRemision;
-    private String ordenVenta;
+    private Long numeroRemision;
+    private Long ordenVenta;
     private String recognitionStore;
     private Double montoTotal;
     private Boolean estadoTransaccion;
-    private Integer codigoRetorno;
-    private String terminal;
+    private String codigoRetorno;
+    private Integer terminal;
     private Integer numeroSkus;
     private Date fechaTxCompra;
     // private String nombreUsuario;
@@ -27,6 +28,12 @@ public class CobroResponse {
     // private String atgOrderId;
     private Double montoAbonoMed;
     private Double montoCobroMed;
+    private Double descuentoAplicado;
+    private String mensaje;
+    private String noAutorizacion;
+    private Boolean paqueteriaOffLine;
+    private Boolean empleado;
+    private Boolean descuentoDe1erDiaAplicado;
     private List<ItemsResponse> items;
 }
 

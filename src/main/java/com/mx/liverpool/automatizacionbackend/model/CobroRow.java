@@ -10,21 +10,22 @@ import java.util.Date;
 @NoArgsConstructor
 @ToString
 public class CobroRow {
-    private String id;
+    private Integer id;
     private String pedido;
     private String remision;
     private String ordenVenta;
     private String recognitionStore;
+    private Integer seller;
     private Double totalCobrado;
     private Integer idCatEstatus;
-    private String terminal;
+    private Integer terminal;
     private Integer totalSkus;
     private Date fechaTxCompra;
     private String nombreUsuario;
     private String customerEmail;
     private String atgShipGrpId;
     private String tipoArticulo;
-    private String skuId;
+    private Long skuId;
     private Integer seccion;
     private String displayName;
     private Double precioVenta;
@@ -38,8 +39,12 @@ public class CobroRow {
     private Double importeDesctoCasa;
     private Double importeDesctoFijo;
     private Double descuentoPorcentual;
-    private Boolean esFlete;
+    private Integer esFlete;
     private String isGift;
+    private Integer monederoPromoType;
+    private Double monederoPromoValue;
+    private String autorizacion;
+    private Integer certificado;
 }
 
 // IMPORTE_DESCTO_1ERDIA
@@ -48,3 +53,8 @@ public class CobroRow {
 // DESCUENTO_PORCENTUAL
 // SK.ES_FLETE
 // SK.IS_GIFT
+//SK.MONEDERO_PROMO_TYPE, \
+//SK.MONEDERO_PROMO_VALUE, \
+//SK.MONEDERO_PROMO_MONTO \
+// AUTORIZACION
+// bt.CERTIFICADO \
