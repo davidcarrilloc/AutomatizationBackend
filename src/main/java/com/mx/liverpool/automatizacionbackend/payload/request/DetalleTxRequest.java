@@ -8,8 +8,6 @@ public class DetalleTxRequest {
     @NotBlank(message = "El campo atgOrderId no puede estar vacío")
     private String atgOrderId;
 
-    private CredentialsTxRequest credentials;
-
     @NotBlank(message = "El campo atgShippingGroupId no puede estar vacío")
     private String atgShippingGroupId;
 
