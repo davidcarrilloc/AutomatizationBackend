@@ -10,7 +10,9 @@ import lombok.extern.log4j.Log4j2;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
+import java.time.Instant;
 import java.util.ArrayList;
+import java.util.Date;
 import java.util.List;
 
 @Service
@@ -31,6 +33,11 @@ public class TxService {
 
     public Object obtenerDetalleTx(String atgOrderId, String atgShippingGroupId, String source) {
         log.info("Entrando a obtenerDetalleTx con los valores {} {}", atgOrderId, atgShippingGroupId);
+
+        if ("QA2".equals(source)) {
+            return crearRespuestaMockQA2();
+        }
+
         List<CobroRow> cobroRowList = obtenerCobroBySource(atgOrderId, atgShippingGroupId, source);
         if (cobroRowList == null || cobroRowList.isEmpty()) {
             log.warn("No se encontraron registros para el shipping group id: {}", atgShippingGroupId);
@@ -54,7 +61,6 @@ public class TxService {
         CobroResponse cobroResponse = new CobroResponse();
         cobroResponse.setMontoCobroMed(cobroRowList.getFirst().getCargoMed() != null ? cobroRowList.getFirst().getCargoMed() : 0.0);
         cobroResponse.setNumeroRemision(cobroRowList.getFirst().getRemision() != null ? Long.valueOf(cobroRowList.getFirst().getRemision()) : null);
-        cobroResponse.setOrdenVenta(cobroRowList.getFirst().getOrdenVenta() != null ? Long.valueOf(cobroRowList.getFirst().getOrdenVenta()) : null);
         cobroResponse.setBcTransactionId(cobroRowList.getFirst().getId());
         cobroResponse.setNumeroSkus(cobroRowList.getFirst().getTotalSkus());
         cobroResponse.setMontoAbonoMed(cobroRowList.getFirst().getAbonoMed() != null ? cobroRowList.getFirst().getAbonoMed() : 0.0);
@@ -98,15 +104,59 @@ public class TxService {
         return cobroResponse;
     }
 
+    private CobroResponse crearRespuestaMockQA2() {
+        CobroResponse response = new CobroResponse();
+        response.setBcTransactionId(1404678);
+        response.setCertificado(111115);
+        response.setNoPedido("0392603317783024");
+        response.setNumeroRemision(4500000674L);
+        response.setRecognitionStore("0001");
+        response.setMontoTotal(279.3);
+        response.setEstadoTransaccion(true);
+        response.setCodigoRetorno("00");
+        response.setTerminal(24);
+        response.setNumeroSkus(1);
+        response.setFechaTxCompra(Date.from(Instant.now()));
+        response.setMontoAbonoMed(0.0);
+        response.setMontoCobroMed(0.0);
+        response.setDescuentoAplicado(0.0);
+        response.setMensaje("La transacción ha sido completada exitosamente");
+        response.setNoAutorizacion("370552");
+        response.setPaqueteriaOffLine(false);
+        response.setEmpleado(false);
+        response.setDescuentoDe1erDiaAplicado(false);
+
+        List<ItemsResponse> items = new ArrayList<>();
+        ItemsResponse item = new ItemsResponse();
+        item.setIdSku(1031970179L);
+        item.setCantidad(1);
+        item.setDescuentoCasa(0.0);
+        item.setDescuentoFijo(0.0);
+        item.setDescuentoPorcentual(30.0);
+        item.setIdPromo(null);
+        item.setImporteTotal(279.3);
+        item.setIsGift(false);
+        item.setNoSeccion(245);
+        item.setPrecioLista(null);
+        item.setPrecioVenta(null);
+        item.setPromoMed(false);
+        item.setPromoMedType(0);
+        item.setPromoMedValue(0.0);
+        item.setSkuDescription("Playera Kenneth Cole");
+        item.setTotalDescuento(null);
+        item.setFlete(false);
+
+        items.add(item);
+        response.setItems(items);
+
+        return response;
+    }
+
     public List<CobroRow> obtenerCobroBySource(String atgOrderId, String atgShippingGroupId, String source) {
         log.info("Entrando a obtenerCobroBySource con los valores {} {} {}", atgOrderId, atgShippingGroupId, source);
         List<CobroRow> cobroRowList = null;
         if ("LIV".equals(source)) {
             cobroRowList = txRepository.obtenerCobroShippingGroup(atgOrderId, atgShippingGroupId);
-        }
-
-        if ("QA2".equals(source)) {
-            cobroRowList = txQA2Repository.obtenerCobroShippingGroup(atgOrderId, atgShippingGroupId);
         }
 
         return cobroRowList;
