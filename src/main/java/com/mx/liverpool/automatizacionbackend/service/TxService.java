@@ -10,9 +10,7 @@ import lombok.extern.log4j.Log4j2;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
-import java.time.Instant;
 import java.util.ArrayList;
-import java.util.Date;
 import java.util.List;
 
 @Service
@@ -70,7 +68,6 @@ public class TxService {
         cobroResponse.setNoPedido(cobroRowList.getFirst().getPedido() != null ? String.format("%16s", cobroRowList.getFirst().getPedido()).replace(' ', '0') : null);
         cobroResponse.setEstadoTransaccion(cobroRowList.getFirst().getIdCatEstatus() == 0);
         cobroResponse.setMontoTotal(cobroRowList.getFirst().getTotalCobrado());
-        cobroResponse.setFechaTxCompra(cobroRowList.getFirst().getFechaTxCompra());
         cobroResponse.setCertificado(cobroRowList.getFirst().getCertificado() != null ? cobroRowList.getFirst().getCertificado() : cobroRowList.getFirst().getSeller());
         cobroResponse.setDescuentoAplicado(descuentoAplicado);
         cobroResponse.setDescuentoDe1erDiaAplicado(descuentoDe1erDiaAplicado);
@@ -116,7 +113,6 @@ public class TxService {
         response.setCodigoRetorno("00");
         response.setTerminal(24);
         response.setNumeroSkus(1);
-        response.setFechaTxCompra(Date.from(Instant.now()));
         response.setMontoAbonoMed(0.0);
         response.setMontoCobroMed(0.0);
         response.setDescuentoAplicado(0.0);
@@ -137,8 +133,6 @@ public class TxService {
         item.setImporteTotal(279.3);
         item.setIsGift(false);
         item.setNoSeccion(245);
-        item.setPrecioLista(null);
-        item.setPrecioVenta(null);
         item.setPromoMed(false);
         item.setPromoMedType(0);
         item.setPromoMedValue(0.0);

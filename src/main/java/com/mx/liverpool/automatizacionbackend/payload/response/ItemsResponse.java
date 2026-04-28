@@ -15,8 +15,8 @@ public class ItemsResponse {
     private Double importeTotal;
     private Boolean isGift;
     private Integer noSeccion;
-    private Double precioLista;
-    private Double precioVenta;
+    // private Double precioLista;
+    // private Double precioVenta;
     private Boolean promoMed;
     private Integer promoMedType;
     private Double promoMedValue;

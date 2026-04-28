@@ -10,6 +10,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 
+import java.io.ByteArrayOutputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
@@ -36,11 +37,11 @@ public class ExcelService {
             for (Row row : sheet) {
                 Map<Integer, String> cellData = new HashMap<>();
                 for (int colIndex : habilitedCols) {
-                    Cell cell = row.getCell(colIndex);
+                    Cell cell = row.getCell(colIndex, Row.MissingCellPolicy.RETURN_BLANK_AS_NULL);
                     if (cell != null) {
                         cellData.put(colIndex, dataFormatter.formatCellValue(cell));
 
-                        if (colIndex == 7) {
+                        if (colIndex == 7 || colIndex == 0) {
                             habilitedCells.add(cellData);
                             cellData = new HashMap<>();
                         }
@@ -55,6 +56,30 @@ public class ExcelService {
             return habilitedCells;
         } catch (Exception e) {
             throw new RuntimeException("Error al procesar el archivo Excel: " + e.getMessage());
+        }
+    }
+
+    public byte[] crearReporteVerificarEnOMSOrdenVenta(Map<String, Map<String, Object>> result) throws IOException {
+        try (Workbook workbook = new XSSFWorkbook();
+             ByteArrayOutputStream out = new ByteArrayOutputStream()) {
+
+            Sheet sheet = workbook.createSheet("OrdenesVenta");
+
+            Row header = sheet.createRow(0);
+            header.createCell(0).setCellValue("Order No");
+            header.createCell(1).setCellValue("Status en OMS");
+            header.createCell(2).setCellValue("Response Body");
+
+            for (Map.Entry<String, Map<String, Object>> entry : result.entrySet()) {
+                Row row = sheet.createRow(sheet.getLastRowNum() + 1);
+                row.createCell(0).setCellValue(entry.getKey());
+                Map<String, Object> data = entry.getValue();
+                row.createCell(1).setCellValue((Integer) data.get("status"));
+                row.createCell(2).setCellValue((String) data.get("responseBody"));
+            }
+
+            workbook.write(out);
+            return out.toByteArray();
         }
     }
 

@@ -20,7 +20,7 @@ public class CobroResponse {
     private String codigoRetorno;
     private Integer terminal;
     private Integer numeroSkus;
-    private Date fechaTxCompra;
+    // private Date fechaTxCompra;
     // private String nombreUsuario;
     // private String customerEmail;
     // private String atgShipGrpId;
