@@ -83,7 +83,7 @@ public class OMSService {
                 .onErrorResume(e -> {
                     log.error("Error llamando a la API para la orden {}: {}", request.getOrderNo(), e.getMessage());
                     Map<String, Object> errorResult = new java.util.HashMap<>();
-                    errorResult.put("status", 500);
+                    errorResult.put("status", 400);
                     errorResult.put("responseBody", e.getMessage());
                     return Mono.just(errorResult);
                 });

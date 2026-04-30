@@ -18,7 +18,7 @@ public class OMSController {
     private final OMSService omsService;
     private final ExcelService excelService;
 
-    @PostMapping(value = "/verificarEnOMSOrdenVenta", consumes = {"multipart/form-data"})
+    @PostMapping(value = "/verificarEnOMSLiverpool", consumes = {"multipart/form-data"})
     public ResponseEntity<?> verificarEnOMSOrdenVenta(@RequestParam("file") MultipartFile file) throws IOException {
         if (isNotExcelFile(file.getOriginalFilename())) throw new IllegalArgumentException("Tipo de archivo inválido. Solo se permiten archivos Excel.");
 
@@ -36,7 +36,7 @@ public class OMSController {
         );
     }
 
-    @PostMapping(value = "/verificarEnOMSShippingGroup", consumes = {"multipart/form-data"})
+    @PostMapping(value = "/verificarEnOMSSuburbia", consumes = {"multipart/form-data"})
     public ResponseEntity<?> verificarEnOMSShippingGroup(@RequestParam("file") MultipartFile file) throws IOException {
         if (isNotExcelFile(file.getOriginalFilename())) throw new IllegalArgumentException("Tipo de archivo inválido. Solo se permiten archivos Excel.");
 
