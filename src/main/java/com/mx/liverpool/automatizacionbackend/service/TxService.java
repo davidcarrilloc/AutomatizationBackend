@@ -2,6 +2,7 @@ package com.mx.liverpool.automatizacionbackend.service;
 
 import com.mx.liverpool.automatizacionbackend.exception.TxNotFound;
 import com.mx.liverpool.automatizacionbackend.model.CobroRow;
+import com.mx.liverpool.automatizacionbackend.model.TxPorMinuto;
 import com.mx.liverpool.automatizacionbackend.payload.response.CobroResponse;
 import com.mx.liverpool.automatizacionbackend.payload.response.ItemsResponse;
 import com.mx.liverpool.automatizacionbackend.repository.TxQA2Repository;
@@ -154,5 +155,13 @@ public class TxService {
         }
 
         return cobroRowList;
+    }
+
+    public List<TxPorMinuto> obtenerTransacciones() {
+        var result = txRepository.obtenerSegmentoActual();
+        var last = result.getFirst().getCurrentMin();
+        var first = last.minusMinutes(5);
+
+        return txRepository.obtenerTransacciones(first, last);
     }
 }

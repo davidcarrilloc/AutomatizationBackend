@@ -46,4 +46,17 @@ public class DatabaseConfig {
     public JdbcTemplate atgCoreJdbcTemplate(@Qualifier("atgCoreDataSource") DataSource ds) {
         return new JdbcTemplate(ds);
     }
+
+    @Bean(name = "sqliteDataSource")
+    @ConfigurationProperties(prefix = "sqlite.datasource")
+    public DataSource sqliteDataSource() {
+        return DataSourceBuilder.create()
+                .driverClassName("org.sqlite.JDBC")
+                .build();
+    }
+
+    @Bean(name = "sqliteJdbcTemplate")
+    public JdbcTemplate sqliteJdbcTemplate(@Qualifier("sqliteDataSource") DataSource ds) {
+        return new JdbcTemplate(ds);
+    }
 }

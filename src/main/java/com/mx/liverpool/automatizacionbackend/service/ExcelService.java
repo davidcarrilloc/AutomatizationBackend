@@ -75,7 +75,10 @@ public class ExcelService {
                 row.createCell(0).setCellValue(entry.getKey());
                 Map<String, Object> data = entry.getValue();
                 row.createCell(1).setCellValue((Integer) data.get("status"));
-                row.createCell(2).setCellValue((String) data.get("responseBody"));
+
+                String content = (String) data.get("responseBody");
+                if (content.length() > 32767) content = content.substring(0, 32764) + "...";
+                row.createCell(2).setCellValue(content);
             }
 
             workbook.write(out);
