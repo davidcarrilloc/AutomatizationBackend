@@ -20,19 +20,25 @@ import java.util.Map;
 @Repository
 public class TxRepository {
     private final NamedParameterJdbcTemplate namedParameterJdbcTemplate;
+    private final NamedParameterJdbcTemplate namedParameterJdbcTemplateCache;
     private final String consultaCobro;
     private final String consultaTransacciones;
     private final String consultaSegmentoActual;
+    private final String consultaTransaccionesCache;
 
     @Autowired
     public TxRepository(@Qualifier("bridgeCoreDataSource") DataSource namedParameterJdbcTemplate,
+                        @Qualifier("sqliteDataSource") DataSource namedParameterJdbcTemplateCache,
                         @Value("${consulta.cobro}") String consultaCobro,
                         @Value("${consulta.transacciones}") String consultaTransacciones,
-                        @Value("${consulta.segmento-actual}") String consultaSegmentoActual) {
+                        @Value("${consulta.segmento-actual}") String consultaSegmentoActual,
+                        @Value("${consulta.transacciones-cache}") String consultaTransaccionesCache) {
         this.namedParameterJdbcTemplate = new NamedParameterJdbcTemplate(namedParameterJdbcTemplate);
+        this.namedParameterJdbcTemplateCache = new NamedParameterJdbcTemplate(namedParameterJdbcTemplateCache);
         this.consultaCobro = consultaCobro;
         this.consultaTransacciones = consultaTransacciones;
         this.consultaSegmentoActual = consultaSegmentoActual;
+        this.consultaTransaccionesCache = consultaTransaccionesCache;
     }
 
     public List<CobroRow> obtenerCobroShippingGroup(String atgOrderId, String shippingGroupId) {
@@ -63,6 +69,18 @@ public class TxRepository {
         return namedParameterJdbcTemplate.query(
                 consultaSegmentoActual,
                 new BeanPropertyRowMapper<>(SegmentoActual.class)
+        );
+    }
+
+    public List<TxPorMinuto> obtenerTransaccionesCache(LocalDateTime start, LocalDateTime end) {
+        Map<String, Object> params = new HashMap<>();
+        params.put("fechaInicio", start);
+        params.put("fechaFin", end);
+
+        return namedParameterJdbcTemplateCache.query(
+                consultaTransaccionesCache,
+                params,
+                new BeanPropertyRowMapper<>(TxPorMinuto.class)
         );
     }
 }

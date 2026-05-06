@@ -11,6 +11,7 @@ import lombok.extern.log4j.Log4j2;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -163,5 +164,9 @@ public class TxService {
         var first = last.minusMinutes(5);
 
         return txRepository.obtenerTransacciones(first, last);
+    }
+
+    public List<TxPorMinuto> obtenerTransaccionesCache(LocalDateTime inicio, LocalDateTime fin) {
+        return txRepository.obtenerTransaccionesCache(inicio, fin);
     }
 }

@@ -31,7 +31,7 @@ public class OMSService {
                 .build();
     }
 
-    public void obtenerReporteNoOMS() {
+    public List<NoOMS> obtenerReporteNoOMS() {
         LocalDateTime fechaFin = LocalDateTime.now();
         LocalDateTime fechaInicio = fechaFin.minusDays(1);
 
@@ -39,13 +39,7 @@ public class OMSService {
         fechaFin = fechaFin.withHour(0).withMinute(0).withSecond(0).withNano(0);
 
         log.info("Fecha inicio: {}, fecha fin: {}", fechaInicio, fechaFin);
-        List<NoOMS> result = omsRepository.obtenerOrdenesNoOMS(fechaInicio, fechaFin);
-        for (NoOMS noOMS : result) {
-            log.info("NoOMS: {}", noOMS);
-            if (noOMS.getTotal() > 90) {
-                log.warn("Alerta: NoOMS con total mayor a 90: {}", noOMS);
-            }
-        }
+        return omsRepository.obtenerOrdenesNoOMS(fechaInicio, fechaFin);
     }
 
     public Map<String, Map<String, Object>> massivePostOrder(List<Map<Integer, String>> ordenesVenta, String sbbOrLp) {

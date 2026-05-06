@@ -21,8 +21,8 @@ public class SQLiteRepository {
 
     @Autowired
     public SQLiteRepository(@Qualifier("sqliteJdbcTemplate") JdbcTemplate jdbcTemplate,
-                            @Value("${crear.tabla}") String consultaCrearTabla,
-                            @Value("${insertar.informacion}") String insertarInformacion) {
+                            @Value("${crea.tabla}") String consultaCrearTabla,
+                            @Value("${inserta.informacion}") String insertarInformacion) {
         this.jdbcTemplate = jdbcTemplate;
         this.consultaCrearTabla = consultaCrearTabla;
         this.insertarInformacion = insertarInformacion;

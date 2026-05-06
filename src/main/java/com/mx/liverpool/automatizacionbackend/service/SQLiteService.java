@@ -41,7 +41,7 @@ public class SQLiteService {
             tx.setTruncdate(txPorMinuto.getFirst().getTruncdate());
             tx.setTransacciones(0);
             tx.setTotalCobrado(0.0);
-            tx.setSitio(txPorMinuto.getFirst().getSitio());
+            tx.setSitio(null);
         }
 
         txPorMinuto.add(tx);
