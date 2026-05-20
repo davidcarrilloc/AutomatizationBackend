@@ -1,9 +1,6 @@
 package com.mx.liverpool.automatizacionbackend.repository;
 
-import com.mx.liverpool.automatizacionbackend.model.CobroRow;
-import com.mx.liverpool.automatizacionbackend.model.SegmentoActual;
-import com.mx.liverpool.automatizacionbackend.model.SysDate;
-import com.mx.liverpool.automatizacionbackend.model.TxPorMinuto;
+import com.mx.liverpool.automatizacionbackend.model.*;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
@@ -22,6 +19,7 @@ public class TxRepository {
     private final NamedParameterJdbcTemplate namedParameterJdbcTemplate;
     private final NamedParameterJdbcTemplate namedParameterJdbcTemplateCache;
     private final String consultaCobro;
+    private final String consultaBC;
     private final String consultaTransacciones;
     private final String consultaSegmentoActual;
     private final String consultaTransaccionesCache;
@@ -32,13 +30,15 @@ public class TxRepository {
                         @Value("${consulta.cobro}") String consultaCobro,
                         @Value("${consulta.transacciones}") String consultaTransacciones,
                         @Value("${consulta.segmento-actual}") String consultaSegmentoActual,
-                        @Value("${consulta.transacciones-cache}") String consultaTransaccionesCache) {
+                        @Value("${consulta.transacciones-cache}") String consultaTransaccionesCache,
+                        @Value("${consulta.bc}") String consultaBC) {
         this.namedParameterJdbcTemplate = new NamedParameterJdbcTemplate(namedParameterJdbcTemplate);
         this.namedParameterJdbcTemplateCache = new NamedParameterJdbcTemplate(namedParameterJdbcTemplateCache);
         this.consultaCobro = consultaCobro;
         this.consultaTransacciones = consultaTransacciones;
         this.consultaSegmentoActual = consultaSegmentoActual;
         this.consultaTransaccionesCache = consultaTransaccionesCache;
+        this.consultaBC = consultaBC;
     }
 
     public List<CobroRow> obtenerCobroShippingGroup(String atgOrderId, String shippingGroupId) {
@@ -81,6 +81,17 @@ public class TxRepository {
                 consultaTransaccionesCache,
                 params,
                 new BeanPropertyRowMapper<>(TxPorMinuto.class)
+        );
+    }
+
+    public List<BC> obtenerBC(List<String> remisiones) {
+        Map<String, Object> params = new HashMap<>();
+        params.put("remisiones", remisiones);
+
+        return namedParameterJdbcTemplate.query(
+                consultaBC,
+                params,
+                new BeanPropertyRowMapper<>(BC.class)
         );
     }
 }

@@ -38,7 +38,7 @@ public class TxService {
             return crearRespuestaMockQA2();
         }
 
-        List<CobroRow> cobroRowList = obtenerCobroBySource(atgOrderId, atgShippingGroupId, source);
+        List<CobroRow> cobroRowList = obtenerCobroBySource(atgOrderId, atgShippingGroupId, "LIV");
         if (cobroRowList == null || cobroRowList.isEmpty()) {
             log.warn("No se encontraron registros para el shipping group id: {}", atgShippingGroupId);
             throw new TxNotFound("No se encontraron registros para el shipping group id: " + atgShippingGroupId);

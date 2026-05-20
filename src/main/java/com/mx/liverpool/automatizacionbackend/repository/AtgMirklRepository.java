@@ -1,7 +1,6 @@
 package com.mx.liverpool.automatizacionbackend.repository;
 
-import com.mx.liverpool.automatizacionbackend.model.AtgMarketplace;
-import com.mx.liverpool.automatizacionbackend.model.OfferId;
+import com.mx.liverpool.automatizacionbackend.model.*;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
@@ -19,14 +18,17 @@ public class AtgMirklRepository {
     private final NamedParameterJdbcTemplate namedParameterJdbcTemplate;
     private final String consultaCobroExistenciaOfferId;
     private final String consultaBridgecoreDevolucionApv;
+    private final String consultaHrd;
 
     @Autowired
     public AtgMirklRepository(@Qualifier("atgCoreDataSource") DataSource namedParameterJdbcTemplate,
                               @Value("${consulta.check-existencia-offerId}") String consultaCobroExistenciaOfferId,
-                              @Value("${consulta.consulta-bridgecore-devolucion-apv}") String consultaBridgecoreDevolucionApv) {
+                              @Value("${consulta.consulta-bridgecore-devolucion-apv}") String consultaBridgecoreDevolucionApv,
+                              @Value("${consulta.hrd}") String consultaHrd) {
         this.namedParameterJdbcTemplate = new NamedParameterJdbcTemplate(namedParameterJdbcTemplate);
         this.consultaCobroExistenciaOfferId = consultaCobroExistenciaOfferId;
         this.consultaBridgecoreDevolucionApv = consultaBridgecoreDevolucionApv;
+        this.consultaHrd = consultaHrd;
     }
 
     public List<OfferId> obtenerExistenciaOfferIds(List<String> offerIds) {
@@ -48,6 +50,17 @@ public class AtgMirklRepository {
                 consultaBridgecoreDevolucionApv,
                 params,
                 new BeanPropertyRowMapper<>(AtgMarketplace.class)
+        );
+    }
+
+    public List<Hrd> obtenerHrd(List<String> remisiones) {
+        Map<String, Object> params = new HashMap<>();
+        params.put("remisiones", remisiones);
+
+        return namedParameterJdbcTemplate.query(
+                consultaHrd,
+                params,
+                new BeanPropertyRowMapper<>(Hrd.class)
         );
     }
 }

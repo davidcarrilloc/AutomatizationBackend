@@ -40,10 +40,10 @@ public class NotifyService {
         }
     }
 
-    public void notificarTx(List<TxPorMinuto> txs) {
+    public void notificarTxCanal(List<TxPorMinuto> txs, String canal) {
         List<TxPorMinuto> txsApp = txs.stream()
                 .filter(tx -> tx.getSitio() == null)
-                .filter(tx -> tx.getCanal().equals("App"))
+                .filter(tx -> tx.getCanal().equals(canal))
                 .toList();
 
         long size = txsApp.size() - 1L;
@@ -58,7 +58,7 @@ public class NotifyService {
 
         if (promedioApp == 0) {
             log.info("Alerta: No hay transacciones");
-            enviarAlertaCritica("Alerta Liverpool", "No hay transacciones en App");
+            enviarAlertaCritica("Alerta Liverpool", "No hay transacciones en " + canal);
             return;
         }
 
@@ -66,8 +66,13 @@ public class NotifyService {
         var currentTxPercent = (currentTx / promedioApp) * 100;
         if (currentTxPercent < 60) {
             log.info("Alerta: Transacciones por minuto {} es menor al 60% del promedio {}", currentTx, promedioApp);
-            enviarAlertaCritica("Alerta Liverpool", "Bajas transacciones en App: " + currentTx);
+            enviarAlertaCritica("Alerta Liverpool", "Bajas transacciones en " + canal + ": " + currentTx);
         }
+    }
+
+    public void notificarTx(List<TxPorMinuto> txs) {
+        notificarTxCanal(txs, "App");
+        notificarTxCanal(txs, "Web");
     }
 
     public void notificarOMS(List<NoOMS> result) {
