@@ -100,6 +100,7 @@ public class TxService {
         }
 
         cobroResponse.setItems(itemsResponses);
+        log.info("CobroResponse construido: {}", cobroResponse);
         return cobroResponse;
     }
 
