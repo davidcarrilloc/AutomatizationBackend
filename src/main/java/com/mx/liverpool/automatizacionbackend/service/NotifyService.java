@@ -72,7 +72,7 @@ public class NotifyService {
 
     public void notificarTx(List<TxPorMinuto> txs) {
         notificarTxCanal(txs, "App");
-        notificarTxCanal(txs, "Web");
+        notificarTxCanal(txs, "Web-Wap");
     }
 
     public void notificarOMS(List<NoOMS> result) {
