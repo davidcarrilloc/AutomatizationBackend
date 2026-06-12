@@ -3,6 +3,7 @@ package com.mx.liverpool.automatizacionbackend.service;
 import com.mx.liverpool.automatizacionbackend.constant.CancelacionAtgMkpConstant;
 import com.mx.liverpool.automatizacionbackend.model.AtgMarketplace;
 import com.mx.liverpool.automatizacionbackend.model.Dummy;
+import com.mx.liverpool.automatizacionbackend.model.FulfillmentResult;
 import lombok.extern.log4j.Log4j2;
 import org.apache.poi.ss.usermodel.*;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
@@ -84,6 +85,35 @@ public class ExcelService {
             workbook.write(out);
             return out.toByteArray();
         }
+    }
+
+    public byte[] crearReporteFulfillment(List<FulfillmentResult> resultados) throws IOException {
+        try (Workbook workbook = new XSSFWorkbook();
+             ByteArrayOutputStream out = new ByteArrayOutputStream()) {
+
+            Sheet sheet = workbook.createSheet("Fulfillment");
+
+            Row header = sheet.createRow(0);
+            header.createCell(0).setCellValue("TrackingNumber");
+            header.createCell(1).setCellValue("Response");
+            header.createCell(2).setCellValue("JSON");
+
+            for (FulfillmentResult resultado : resultados) {
+                Row row = sheet.createRow(sheet.getLastRowNum() + 1);
+                row.createCell(0).setCellValue(resultado.getTrackingNumber());
+                row.createCell(1).setCellValue(truncarCelda(resultado.getResponse()));
+                row.createCell(2).setCellValue(truncarCelda(resultado.getJson()));
+            }
+
+            workbook.write(out);
+            return out.toByteArray();
+        }
+    }
+
+    private String truncarCelda(String content) {
+        if (content == null) return "";
+        if (content.length() > 32767) return content.substring(0, 32764) + "...";
+        return content;
     }
 
     public String crearReporteCancelacion(List<Dummy> dummies, List<AtgMarketplace> atgMarketplaces) {

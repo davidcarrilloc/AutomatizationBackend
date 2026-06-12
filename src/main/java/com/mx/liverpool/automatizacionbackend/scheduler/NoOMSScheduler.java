@@ -22,7 +22,7 @@ public class NoOMSScheduler {
         this.notifyService = notifyService;
     }
 
-    @Scheduled(cron = "0 0 8,16 * * *")
+    // @Scheduled(cron = "0 0 8,16 * * *")
     public void executeTask() {
         log.info("Ejecutando NoOMSScheduler");
         List<NoOMS> result = omsService.obtenerReporteNoOMS();

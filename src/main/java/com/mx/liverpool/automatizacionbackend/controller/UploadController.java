@@ -40,38 +40,6 @@ public class UploadController {
         ));
     }
 
-    @PostMapping(value = "/remisionSinDatos", consumes = {"multipart/form-data"})
-    public void uploadRemisionSinDatosFile(@RequestParam("file") MultipartFile file) {
-        if (isNotCSVFile(file.getOriginalFilename())) throw new IllegalArgumentException("Tipo de archivo inválido. Solo se permiten archivos CSV.");
-//        fileService.moveFileToProcessingRemisionSinDatosDirectory(file);
-//        executePythonService.executeRemisionSinDatosScript();
-    }
-
-    @PostMapping(value = "/visualizarSoms", consumes = {"multipart/form-data"})
-    public void uploadVisualizarSoms(@RequestParam("file") MultipartFile file) {
-        if (isNotCSVFile(file.getOriginalFilename())) throw new IllegalArgumentException("Tipo de archivo inválido. Solo se permiten archivos CSV.");
-    }
-
-    @PostMapping(value = "/visualizarOms", consumes = {"multipart/form-data"})
-    public void uploadVisualizarOms(@RequestParam("file") MultipartFile file) {
-        if (isNotCSVFile(file.getOriginalFilename())) throw new IllegalArgumentException("Tipo de archivo inválido. Solo se permiten archivos CSV.");
-    }
-
-    @PostMapping(value = "/obtenerXmlSoms", consumes = {"multipart/form-data"})
-    public void uploadObtenerXmlSoms(@RequestParam("file") MultipartFile file) {
-        if (isNotCSVFile(file.getOriginalFilename())) throw new IllegalArgumentException("Tipo de archivo inválido. Solo se permiten archivos CSV.");
-    }
-
-    @PostMapping(value = "/obtenerXmlSterling", consumes = {"multipart/form-data"})
-    public void uploadObtenerXmlOms(@RequestParam("file") MultipartFile file) {
-        if (isNotCSVFile(file.getOriginalFilename())) throw new IllegalArgumentException("Tipo de archivo inválido. Solo se permiten archivos CSV.");
-    }
-
-    @PostMapping(value = "/suburbiaReproceso", consumes = {"multipart/form-data"})
-    public void uploadSuburbiaReproceso(@RequestParam("file") MultipartFile file) {
-        if (isNotCSVFile(file.getOriginalFilename())) throw new IllegalArgumentException("Tipo de archivo inválido. Solo se permiten archivos CSV.");
-    }
-
     @PostMapping(value = "/codigosDigitales", consumes = {"multipart/form-data"})
     public ResponseEntity<?> uploadCodigosDigitales(@RequestParam("file") MultipartFile file) {
         if (isNotExcelFile(file.getOriginalFilename())) throw new IllegalArgumentException("Tipo de archivo inválido. Solo se permiten archivos Excel.");

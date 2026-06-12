@@ -28,7 +28,7 @@ public class TxScheduler {
         this.messagingTemplate = messagingTemplate;
     }
 
-    @Scheduled(cron = "0 * * * * *")
+    // @Scheduled(cron = "0 * * * * *")
     public void executeTask() {
         log.info("Ejecutando TxScheduler");
         var result = txService.obtenerTransacciones();
@@ -37,7 +37,7 @@ public class TxScheduler {
         log.info("Finalizando TxScheduler");
     }
 
-    @Scheduled(cron = "*/30 * * * * *")
+    // @Scheduled(cron = "*/30 * * * * *")
     public void executeNotify() {
         log.info("Ejecutando Notify");
         if (isNotify) {
