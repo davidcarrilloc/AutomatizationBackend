@@ -5,6 +5,7 @@ import com.mx.liverpool.automatizacionbackend.service.SQLiteService;
 import com.mx.liverpool.automatizacionbackend.service.TxService;
 import lombok.extern.log4j.Log4j2;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
@@ -18,17 +19,20 @@ public class TxScheduler {
     private final NotifyService notifyService;
     private final SQLiteService sqLiteService;
     private final SimpMessagingTemplate messagingTemplate;
+    private final boolean ventaEspecial;
     private static boolean isNotify;
 
     @Autowired
-    public TxScheduler(TxService txService, NotifyService notifyService, SQLiteService sqLiteService, SimpMessagingTemplate messagingTemplate) {
+    public TxScheduler(TxService txService, NotifyService notifyService, SQLiteService sqLiteService, SimpMessagingTemplate messagingTemplate,
+                       @Value("${venta.especial}") boolean ventaEspecial) {
         this.txService = txService;
         this.notifyService = notifyService;
         this.sqLiteService = sqLiteService;
         this.messagingTemplate = messagingTemplate;
+        this.ventaEspecial = ventaEspecial;
     }
 
-    // @Scheduled(cron = "0 * * * * *")
+    @Scheduled(cron = "0 * * * * *")
     public void executeTask() {
         log.info("Ejecutando TxScheduler");
         var result = txService.obtenerTransacciones();
@@ -37,17 +41,23 @@ public class TxScheduler {
         log.info("Finalizando TxScheduler");
     }
 
-    // @Scheduled(cron = "*/30 * * * * *")
+    @Scheduled(cron = "*/30 * * * * *")
     public void executeNotify() {
         log.info("Ejecutando Notify");
         if (isNotify) {
             LocalDateTime current = LocalDateTime.now();
             LocalDateTime last2HoursAgo = LocalDateTime.now().minusHours(2);
             var result = txService.obtenerTransaccionesCache(last2HoursAgo, current);
-            if (result.size() > 1) notifyService.notificarTx(result);
+            if (result.size() > 1 && esHorarioNotificacion(current)) notifyService.notificarTx(result);
             messagingTemplate.convertAndSend("/topic/tx", result);
             isNotify = false;
         }
         log.info("Finalizando Notify");
+    }
+
+    private boolean esHorarioNotificacion(LocalDateTime current) {
+        int hora = current.getHour();
+        if (ventaEspecial) return hora >= 6;
+        return hora >= 7 && hora < 20;
     }
 }
