@@ -5,6 +5,7 @@ import com.mx.liverpool.automatizacionbackend.model.AtgMarketplace;
 import com.mx.liverpool.automatizacionbackend.model.CorreoTx;
 import com.mx.liverpool.automatizacionbackend.model.Dummy;
 import com.mx.liverpool.automatizacionbackend.model.FulfillmentResult;
+import com.mx.liverpool.automatizacionbackend.model.OrdenSoms;
 import lombok.extern.log4j.Log4j2;
 import org.apache.poi.ss.usermodel.*;
 import org.apache.poi.xssf.streaming.SXSSFWorkbook;
@@ -117,6 +118,55 @@ public class ExcelService {
             }
 
             workbook.write(out);
+            return out.toByteArray();
+        }
+    }
+
+    public List<String> leerRemisionesDeExcel(MultipartFile file) {
+        log.info("Entrando a leerRemisionesDeExcel");
+        List<String> remisiones = new ArrayList<>();
+
+        try (InputStream is = file.getInputStream();
+             Workbook workbook = new XSSFWorkbook(is)) {
+            Sheet sheet = workbook.getSheetAt(0);
+            for (Row row : sheet) {
+                Cell cell = row.getCell(0, Row.MissingCellPolicy.RETURN_BLANK_AS_NULL);
+                if (cell == null) continue;
+                String valor = dataFormatter.formatCellValue(cell).trim();
+                if (!valor.isEmpty()) remisiones.add(valor);
+            }
+        } catch (IOException e) {
+            throw new RuntimeException("Error al leer el Excel de remisiones: " + e.getMessage());
+        }
+
+        log.info("Finalizando leerRemisionesDeExcel con {} remisiones", remisiones.size());
+        return remisiones;
+    }
+
+    public byte[] crearReporteOrdenSoms(List<OrdenSoms> resultados) throws IOException {
+        log.info("Entrando a crearReporteOrdenSoms con {} resultados", resultados.size());
+        try (Workbook workbook = new XSSFWorkbook();
+             ByteArrayOutputStream out = new ByteArrayOutputStream()) {
+
+            Sheet sheet = workbook.createSheet("Ordenes");
+
+            Row header = sheet.createRow(0);
+            header.createCell(0).setCellValue("Remision");
+            header.createCell(1).setCellValue("Status Datos");
+            header.createCell(2).setCellValue("Nodo Destinatario");
+            header.createCell(3).setCellValue("Response");
+
+            int rowNum = 1;
+            for (OrdenSoms resultado : resultados) {
+                Row row = sheet.createRow(rowNum++);
+                row.createCell(0).setCellValue(truncarCelda(resultado.getRemision()));
+                row.createCell(1).setCellValue(truncarCelda(resultado.getStatusDatos()));
+                row.createCell(2).setCellValue(truncarCelda(resultado.getNodoDestinatario()));
+                row.createCell(3).setCellValue(truncarCelda(resultado.getResponse()));
+            }
+
+            workbook.write(out);
+            log.info("Finalizando crearReporteOrdenSoms");
             return out.toByteArray();
         }
     }
