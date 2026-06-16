@@ -23,9 +23,10 @@ public class SOMSController {
     private final OrdenSomsService ordenSomsService;
     private final ExcelService excelService;
 
-    @PostMapping("/reporte/remisiones-sin-datos")
-    public ResponseEntity<?> detalleTx() {
-        return ResponseEntity.ok(somsService.obtenerReporte());
+    @PostMapping(value = "/reporte/remisiones-sin-datos", consumes = {"multipart/form-data"})
+    public ResponseEntity<?> detalleTx(@RequestParam("file") MultipartFile file) {
+        if (isNotTxtFile(file.getOriginalFilename())) throw new IllegalArgumentException("Tipo de archivo inválido. Solo se permiten archivos .txt.");
+        return ResponseEntity.ok(somsService.obtenerReporte(file));
     }
 
     @PostMapping(value = "/consultarOrdenes", consumes = {"multipart/form-data"})
@@ -48,5 +49,9 @@ public class SOMSController {
 
     private boolean isNotExcelFile(String fileName) {
         return fileName == null || !(fileName.toLowerCase().endsWith(".xlsx") || fileName.toLowerCase().endsWith(".xls"));
+    }
+
+    private boolean isNotTxtFile(String fileName) {
+        return fileName == null || !fileName.toLowerCase().endsWith(".txt");
     }
 }

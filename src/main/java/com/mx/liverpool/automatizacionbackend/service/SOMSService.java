@@ -5,37 +5,38 @@ import com.mx.liverpool.automatizacionbackend.model.Hrd;
 import com.mx.liverpool.automatizacionbackend.payload.response.SOMSResponse;
 import com.mx.liverpool.automatizacionbackend.repository.AtgMirklRepository;
 import com.mx.liverpool.automatizacionbackend.repository.TxRepository;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.log4j.Log4j2;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
-import org.springframework.web.reactive.function.client.WebClient;
-import reactor.core.publisher.Mono;
+import org.springframework.web.multipart.MultipartFile;
 
+import java.io.BufferedReader;
+import java.io.IOException;
+import java.io.InputStreamReader;
+import java.nio.charset.StandardCharsets;
 import java.util.*;
 
 @Service
+@RequiredArgsConstructor
 @Log4j2
 public class SOMSService {
-    private final WebClient webClient;
     private final TxRepository txRepository;
     private final AtgMirklRepository atgMirklRepository;
 
-    @Autowired
-    public SOMSService(WebClient.Builder webClient, TxRepository txRepository, AtgMirklRepository atgMirklRepository) {
-        this.webClient = webClient
-                .baseUrl("http://172.17.212.7:6061")
-                .build();
-        this.txRepository = txRepository;
-        this.atgMirklRepository = atgMirklRepository;
-    }
-
-    private Mono<List<String>> consultarRemisionesSinDatos() {
-        return webClient.get()
-                .uri("")
-                .retrieve()
-                .bodyToMono(String.class)
-                .map(content -> Arrays.asList(content.split("\\r?\\n")))
-                .doOnError(e -> log.error("Error al consultar remisiones sin datos: {}", e.getMessage()));
+    private List<String> leerRemisiones(MultipartFile file) {
+        log.info("Entrando a leerRemisiones");
+        try (BufferedReader reader = new BufferedReader(
+                new InputStreamReader(file.getInputStream(), StandardCharsets.UTF_8))) {
+            List<String> remisiones = reader.lines()
+                    .map(String::trim)
+                    .filter(linea -> !linea.isEmpty())
+                    .toList();
+            log.info("Finalizando leerRemisiones con {} remisiones", remisiones.size());
+            return remisiones;
+        } catch (IOException e) {
+            log.error("Error al leer el archivo de remisiones: {}", e.getMessage());
+            throw new RuntimeException("Error al leer el archivo de remisiones: " + e.getMessage());
+        }
     }
 
     private List<String> limpiarCerosIzquierda(List<String> universo) {
@@ -91,8 +92,11 @@ public class SOMSService {
                 .build();
     }
 
-    public Object obtenerReporte() {
-        var resultSet = consultarRemisionesSinDatos().block();
-        return ejecutarConsultas(resultSet);
+    public Object obtenerReporte(MultipartFile file) {
+        log.info("Entrando a obtenerReporte");
+        var resultSet = leerRemisiones(file);
+        var reporte = ejecutarConsultas(resultSet);
+        log.info("Finalizando obtenerReporte");
+        return reporte;
     }
 }
