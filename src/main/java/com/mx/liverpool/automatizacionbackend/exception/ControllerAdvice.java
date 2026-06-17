@@ -93,6 +93,13 @@ public class ControllerAdvice {
                 .body(ex.getMessage());
     }
 
+    @ExceptionHandler(TxDiffException.class)
+    public ResponseEntity<?> handleTxDiffException(TxDiffException ex) {
+        return ResponseEntity
+                .status(HttpStatus.INTERNAL_SERVER_ERROR)
+                .body(Map.of("error", ex.getMessage()));
+    }
+
     @ExceptionHandler(TxNotFound.class)
     public ResponseEntity<?> handleWebClientRequestException(TxNotFound ex) {
         return ResponseEntity

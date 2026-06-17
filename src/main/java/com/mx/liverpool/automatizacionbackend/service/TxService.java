@@ -1,7 +1,10 @@
 package com.mx.liverpool.automatizacionbackend.service;
 
+import com.mx.liverpool.automatizacionbackend.exception.TxDiffException;
 import com.mx.liverpool.automatizacionbackend.exception.TxNotFound;
 import com.mx.liverpool.automatizacionbackend.model.CobroRow;
+import com.mx.liverpool.automatizacionbackend.model.ComparativaTx;
+import com.mx.liverpool.automatizacionbackend.model.TxDiffPorHora;
 import com.mx.liverpool.automatizacionbackend.model.TxPorMinuto;
 import com.mx.liverpool.automatizacionbackend.payload.response.CobroResponse;
 import com.mx.liverpool.automatizacionbackend.payload.response.ItemsResponse;
@@ -18,17 +21,61 @@ import java.util.List;
 @Service
 @Log4j2
 public class TxService {
+    private static final List<Integer> CANALES_APP = List.of(9);
+    private static final List<Integer> CANALES_WEB = List.of(1, 8);
+    private static final List<Integer> TIPOS_TODOS = List.of(0, 1);
+    private static final List<Integer> TIPOS_SL = List.of(1);
+    private static final List<Integer> TIPOS_BT = List.of(0);
+
     private final TxRepository txRepository;
     private final TxQA2Repository txQA2Repository;
+    private final ExcelService excelService;
 
     @Autowired
-    public TxService(TxRepository txRepository, TxQA2Repository txQA2Repository) {
+    public TxService(TxRepository txRepository, TxQA2Repository txQA2Repository, ExcelService excelService) {
         this.txRepository = txRepository;
         this.txQA2Repository = txQA2Repository;
+        this.excelService = excelService;
     }
 
-    public Object obtenerDiferenciaTxHoyvsAyer() {
-        return null;
+    public byte[] obtenerDiferenciaTxHoyvsAyer() {
+        log.info("Entrando a obtenerDiferenciaTxHoyvsAyer");
+        try {
+            LocalDateTime ahora = LocalDateTime.now();
+            LocalDateTime hoyInicio = ahora.toLocalDate().atStartOfDay();
+            LocalDateTime ayerInicio = hoyInicio.minusDays(1);
+            LocalDateTime ayerFin = ahora.minusDays(1);
+
+            List<ComparativaTx> comparativas = List.of(
+                    construirComparativa("APP", "APP", CANALES_APP, TIPOS_TODOS, ayerInicio, ayerFin, hoyInicio, ahora),
+                    construirComparativa("WEB", "WEB", CANALES_WEB, TIPOS_TODOS, ayerInicio, ayerFin, hoyInicio, ahora),
+                    construirComparativa("APP SL", "APP SL", CANALES_APP, TIPOS_SL, ayerInicio, ayerFin, hoyInicio, ahora),
+                    construirComparativa("WEB SL", "WEB SL", CANALES_WEB, TIPOS_SL, ayerInicio, ayerFin, hoyInicio, ahora),
+                    construirComparativa("APP BT", "APP BT", CANALES_APP, TIPOS_BT, ayerInicio, ayerFin, hoyInicio, ahora),
+                    construirComparativa("WEB BT", "WEB BT", CANALES_WEB, TIPOS_BT, ayerInicio, ayerFin, hoyInicio, ahora)
+            );
+
+            byte[] reporte = excelService.crearReporteTxDiff(comparativas);
+            log.info("Finalizando obtenerDiferenciaTxHoyvsAyer");
+            return reporte;
+        } catch (Exception e) {
+            log.error("Error al generar el reporte de diferencia TX: {}", e.getMessage());
+            throw new TxDiffException("Error al generar el reporte de diferencia TX: " + e.getMessage());
+        }
+    }
+
+    private ComparativaTx construirComparativa(String nombreHoja, String segmento,
+                                               List<Integer> canales, List<Integer> tiposArticulo,
+                                               LocalDateTime ayerInicio, LocalDateTime ayerFin,
+                                               LocalDateTime hoyInicio, LocalDateTime hoyFin) {
+        List<TxDiffPorHora> ayer = txRepository.obtenerTxDiff(canales, tiposArticulo, ayerInicio, ayerFin);
+        List<TxDiffPorHora> hoy = txRepository.obtenerTxDiff(canales, tiposArticulo, hoyInicio, hoyFin);
+        return ComparativaTx.builder()
+                .nombreHoja(nombreHoja)
+                .titulo("Comparativa de ventas por minuto entre ayer y hoy para " + segmento)
+                .ayer(ayer)
+                .hoy(hoy)
+                .build();
     }
 
     public Object obtenerDetalleTx(String atgOrderId, String atgShippingGroupId, String source) {

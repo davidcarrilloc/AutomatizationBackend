@@ -23,6 +23,7 @@ public class TxRepository {
     private final String consultaTransacciones;
     private final String consultaSegmentoActual;
     private final String consultaTransaccionesCache;
+    private final String consultaTxDiff;
 
     @Autowired
     public TxRepository(@Qualifier("bridgeCoreDataSource") DataSource namedParameterJdbcTemplate,
@@ -31,7 +32,8 @@ public class TxRepository {
                         @Value("${consulta.transacciones}") String consultaTransacciones,
                         @Value("${consulta.segmento-actual}") String consultaSegmentoActual,
                         @Value("${consulta.transacciones-cache}") String consultaTransaccionesCache,
-                        @Value("${consulta.bc}") String consultaBC) {
+                        @Value("${consulta.bc}") String consultaBC,
+                        @Value("${consulta.tx-diff}") String consultaTxDiff) {
         this.namedParameterJdbcTemplate = new NamedParameterJdbcTemplate(namedParameterJdbcTemplate);
         this.namedParameterJdbcTemplateCache = new NamedParameterJdbcTemplate(namedParameterJdbcTemplateCache);
         this.consultaCobro = consultaCobro;
@@ -39,6 +41,7 @@ public class TxRepository {
         this.consultaSegmentoActual = consultaSegmentoActual;
         this.consultaTransaccionesCache = consultaTransaccionesCache;
         this.consultaBC = consultaBC;
+        this.consultaTxDiff = consultaTxDiff;
     }
 
     public List<CobroRow> obtenerCobroShippingGroup(String atgOrderId, String shippingGroupId) {
@@ -81,6 +84,20 @@ public class TxRepository {
                 consultaTransaccionesCache,
                 params,
                 new BeanPropertyRowMapper<>(TxPorMinuto.class)
+        );
+    }
+
+    public List<TxDiffPorHora> obtenerTxDiff(List<Integer> canales, List<Integer> tiposArticulo, LocalDateTime inicio, LocalDateTime fin) {
+        Map<String, Object> params = new HashMap<>();
+        params.put("canales", canales);
+        params.put("tiposArticulo", tiposArticulo);
+        params.put("fechaInicio", inicio);
+        params.put("fechaFin", fin);
+
+        return namedParameterJdbcTemplate.query(
+                consultaTxDiff,
+                params,
+                new BeanPropertyRowMapper<>(TxDiffPorHora.class)
         );
     }
 

@@ -5,11 +5,21 @@ import com.mx.liverpool.automatizacionbackend.model.AtgMarketplace;
 import com.mx.liverpool.automatizacionbackend.model.CorreoTx;
 import com.mx.liverpool.automatizacionbackend.model.Dummy;
 import com.mx.liverpool.automatizacionbackend.model.FulfillmentResult;
+import com.mx.liverpool.automatizacionbackend.model.ComparativaTx;
 import com.mx.liverpool.automatizacionbackend.model.OrdenSoms;
+import com.mx.liverpool.automatizacionbackend.model.TxDiffPorHora;
 import lombok.extern.log4j.Log4j2;
 import org.apache.poi.ss.usermodel.*;
+import org.apache.poi.ss.util.CellRangeAddress;
+import org.apache.poi.xddf.usermodel.chart.*;
 import org.apache.poi.xssf.streaming.SXSSFWorkbook;
+import org.apache.poi.xssf.usermodel.XSSFChart;
+import org.apache.poi.xssf.usermodel.XSSFClientAnchor;
+import org.apache.poi.xssf.usermodel.XSSFDrawing;
+import org.apache.poi.xssf.usermodel.XSSFSheet;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
+import org.openxmlformats.schemas.drawingml.x2006.chart.CTAreaChart;
+import org.openxmlformats.schemas.drawingml.x2006.chart.STGrouping;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
@@ -169,6 +179,87 @@ public class ExcelService {
             log.info("Finalizando crearReporteOrdenSoms");
             return out.toByteArray();
         }
+    }
+
+    public byte[] crearReporteTxDiff(List<ComparativaTx> comparativas) throws IOException {
+        log.info("Entrando a crearReporteTxDiff con {} comparativas", comparativas.size());
+        try (XSSFWorkbook workbook = new XSSFWorkbook();
+             ByteArrayOutputStream out = new ByteArrayOutputStream()) {
+
+            for (ComparativaTx comparativa : comparativas) {
+                crearHojaComparativa(workbook, comparativa.getNombreHoja(), comparativa.getTitulo(),
+                        comparativa.getAyer(), comparativa.getHoy());
+            }
+
+            workbook.write(out);
+            log.info("Finalizando crearReporteTxDiff");
+            return out.toByteArray();
+        }
+    }
+
+    private void crearHojaComparativa(XSSFWorkbook workbook, String nombreHoja, String titulo,
+                                      List<TxDiffPorHora> ayer, List<TxDiffPorHora> hoy) {
+        XSSFSheet sheet = workbook.createSheet(nombreHoja);
+
+        // Fusionar horas de ayer y hoy: [0]=ayer, [1]=hoy. TreeMap asegura orden cronológico (HH:MM).
+        TreeMap<String, int[]> porHora = new TreeMap<>();
+        for (TxDiffPorHora fila : ayer) {
+            porHora.computeIfAbsent(fila.getHora(), h -> new int[2])[0] = fila.getTotal() == null ? 0 : fila.getTotal();
+        }
+        for (TxDiffPorHora fila : hoy) {
+            porHora.computeIfAbsent(fila.getHora(), h -> new int[2])[1] = fila.getTotal() == null ? 0 : fila.getTotal();
+        }
+
+        Row header = sheet.createRow(0);
+        header.createCell(0).setCellValue("Hora");
+        header.createCell(1).setCellValue("Ayer");
+        header.createCell(2).setCellValue("Hoy");
+
+        int rowNum = 1;
+        for (Map.Entry<String, int[]> entry : porHora.entrySet()) {
+            Row row = sheet.createRow(rowNum++);
+            row.createCell(0).setCellValue(truncarCelda(entry.getKey()));
+            row.createCell(1).setCellValue(entry.getValue()[0]);
+            row.createCell(2).setCellValue(entry.getValue()[1]);
+        }
+        int ultimaFila = rowNum - 1;
+
+        if (ultimaFila < 1) {
+            log.warn("Sin datos para la hoja {}, se omite la gráfica", nombreHoja);
+            return;
+        }
+
+        XSSFDrawing drawing = sheet.createDrawingPatriarch();
+        XSSFClientAnchor anchor = drawing.createAnchor(0, 0, 0, 0, 4, 1, 20, 28);
+        XSSFChart chart = drawing.createChart(anchor);
+        chart.setTitleText(titulo);
+        chart.setTitleOverlay(false);
+        chart.getOrAddLegend().setPosition(LegendPosition.BOTTOM);
+
+        XDDFCategoryAxis catAxis = chart.createCategoryAxis(AxisPosition.BOTTOM);
+        catAxis.setTitle("Hora");
+        XDDFValueAxis valAxis = chart.createValueAxis(AxisPosition.LEFT);
+        valAxis.setTitle("Transacciones");
+        valAxis.setCrosses(AxisCrosses.AUTO_ZERO);
+
+        XDDFDataSource<String> horas = XDDFDataSourcesFactory.fromStringCellRange(
+                sheet, new CellRangeAddress(1, ultimaFila, 0, 0));
+        XDDFNumericalDataSource<Double> serieAyer = XDDFDataSourcesFactory.fromNumericCellRange(
+                sheet, new CellRangeAddress(1, ultimaFila, 1, 1));
+        XDDFNumericalDataSource<Double> serieHoy = XDDFDataSourcesFactory.fromNumericCellRange(
+                sheet, new CellRangeAddress(1, ultimaFila, 2, 2));
+
+        XDDFAreaChartData data = (XDDFAreaChartData) chart.createData(ChartTypes.AREA, catAxis, valAxis);
+        data.setVaryColors(true);
+        XDDFAreaChartData.Series sAyer = (XDDFAreaChartData.Series) data.addSeries(horas, serieAyer);
+        sAyer.setTitle("Ayer", null);
+        XDDFAreaChartData.Series sHoy = (XDDFAreaChartData.Series) data.addSeries(horas, serieHoy);
+        sHoy.setTitle("Hoy", null);
+        chart.plot(data);
+
+        // Convertir a áreas apiladas (stacked)
+        CTAreaChart ctAreaChart = chart.getCTChart().getPlotArea().getAreaChartArray(0);
+        ctAreaChart.addNewGrouping().setVal(STGrouping.STACKED);
     }
 
     private String truncarCelda(String content) {

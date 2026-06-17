@@ -15,7 +15,6 @@ public class UploadController {
     private final ExecutePythonService executePythonService;
     private final CancelacionAtgMkpService cancelacionAtgMkpService;
     private final CodigoDigitalService codigoDigitalService;
-    private final TxService txService;
     private final ExcelService excelService;
 
     @PostMapping(value = "/reprocesoMkpApv", consumes = {"multipart/form-data"})
@@ -49,11 +48,6 @@ public class UploadController {
                         .map(row -> row.get(0))
                         .toList()
         ));
-    }
-
-    @GetMapping("/obtenerDiferenciaTx")
-    public ResponseEntity<?> diferenciaTxHoyvsAyer() {
-        return ResponseEntity.ok(txService.obtenerDiferenciaTxHoyvsAyer());
     }
 
     private boolean isNotCSVFile(String fileName) {
