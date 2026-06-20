@@ -12,6 +12,7 @@ import lombok.NoArgsConstructor;
 public class OrdenSoms {
     private String remision;
     private String statusDatos;
+    private String statusSoms;
     private String nodoDestinatario;
     private String response;
 }

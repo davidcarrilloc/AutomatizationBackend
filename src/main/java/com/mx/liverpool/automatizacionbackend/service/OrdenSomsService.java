@@ -22,6 +22,7 @@ import javax.xml.transform.stream.StreamResult;
 import java.io.StringReader;
 import java.io.StringWriter;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 
 @Service
@@ -29,6 +30,9 @@ import java.util.List;
 public class OrdenSomsService {
     private static final String DATOS = "DATOS";
     private static final String SIN_DATOS = "SIN DATOS";
+    private static final long PAUSA_ENTRE_CONSULTAS_MS = 2000L;
+    private static final long PAUSA_CADA_LOTE_MS = 10000L;
+    private static final int TAMANO_LOTE = 10;
 
     private final WebClient webClient;
 
@@ -40,14 +44,39 @@ public class OrdenSomsService {
                 .build();
     }
 
-    public List<OrdenSoms> consultarOrdenes(List<String> remisiones) {
+    public List<OrdenSoms> consultarOrdenes(List<String> remisiones, int muestra) {
         log.info("Entrando a consultarOrdenes con {} remisiones", remisiones.size());
+        List<String> seleccionadas = seleccionarMuestraAleatoria(remisiones, muestra);
+        log.info("Se recibieron {} remisiones, consultando una muestra de {}", remisiones.size(), seleccionadas.size());
         List<OrdenSoms> resultados = new ArrayList<>();
-        for (String remision : remisiones) {
+        int contador = 0;
+        for (String remision : seleccionadas) {
             resultados.add(consultarOrden(remision));
+            contador++;
+            if (contador < seleccionadas.size()) {
+                pausar(contador % TAMANO_LOTE == 0 ? PAUSA_CADA_LOTE_MS : PAUSA_ENTRE_CONSULTAS_MS);
+            }
         }
         log.info("Finalizando consultarOrdenes con {} resultados", resultados.size());
         return resultados;
+    }
+
+    private List<String> seleccionarMuestraAleatoria(List<String> remisiones, int muestra) {
+        if (muestra <= 0 || remisiones.size() <= muestra) {
+            return remisiones;
+        }
+        List<String> copia = new ArrayList<>(remisiones);
+        Collections.shuffle(copia);
+        return new ArrayList<>(copia.subList(0, muestra));
+    }
+
+    private void pausar(long millis) {
+        try {
+            Thread.sleep(millis);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            log.warn("Pausa entre consultas interrumpida: {}", e.getMessage());
+        }
     }
 
     private OrdenSoms consultarOrden(String remision) {
@@ -94,6 +123,8 @@ public class OrdenSomsService {
         String codpost = obtenerTexto(doc, "codpost");
         boolean tieneDatos = !nombre.isBlank() && !calle.isBlank() && !codpost.isBlank();
 
+        String estatus = obtenerTexto(doc, "estatus");
+
         NodeList destinatarios = doc.getElementsByTagName("destinatario");
         String nodoDestinatario = destinatarios.getLength() > 0
                 ? nodoComoTexto(destinatarios.item(0))
@@ -102,6 +133,7 @@ public class OrdenSomsService {
         return OrdenSoms.builder()
                 .remision(remision)
                 .statusDatos(tieneDatos ? DATOS : SIN_DATOS)
+                .statusSoms(estatus)
                 .nodoDestinatario(nodoDestinatario)
                 .response(xml)
                 .build();
@@ -111,6 +143,7 @@ public class OrdenSomsService {
         return OrdenSoms.builder()
                 .remision(remision)
                 .statusDatos("\"error\": \"" + (mensaje == null ? "" : mensaje) + "\"")
+                .statusSoms(SIN_DATOS)
                 .nodoDestinatario(SIN_DATOS)
                 .response(response == null ? "" : response)
                 .build();

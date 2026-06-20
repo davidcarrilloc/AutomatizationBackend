@@ -225,16 +225,18 @@ public class ExcelService {
             Row header = sheet.createRow(0);
             header.createCell(0).setCellValue("Remision");
             header.createCell(1).setCellValue("Status Datos");
-            header.createCell(2).setCellValue("Nodo Destinatario");
-            header.createCell(3).setCellValue("Response");
+            header.createCell(2).setCellValue("Status SOMS");
+            header.createCell(3).setCellValue("Nodo Destinatario");
+            header.createCell(4).setCellValue("Response");
 
             int rowNum = 1;
             for (OrdenSoms resultado : resultados) {
                 Row row = sheet.createRow(rowNum++);
                 row.createCell(0).setCellValue(truncarCelda(resultado.getRemision()));
                 row.createCell(1).setCellValue(truncarCelda(resultado.getStatusDatos()));
-                row.createCell(2).setCellValue(truncarCelda(resultado.getNodoDestinatario()));
-                row.createCell(3).setCellValue(truncarCelda(resultado.getResponse()));
+                row.createCell(2).setCellValue(truncarCelda(resultado.getStatusSoms()));
+                row.createCell(3).setCellValue(truncarCelda(resultado.getNodoDestinatario()));
+                row.createCell(4).setCellValue(truncarCelda(resultado.getResponse()));
             }
 
             workbook.write(out);

@@ -30,7 +30,8 @@ public class SOMSController {
     }
 
     @PostMapping(value = "/consultarOrdenes", consumes = {"multipart/form-data"})
-    public ResponseEntity<?> consultarOrdenes(@RequestParam("file") MultipartFile file) throws IOException {
+    public ResponseEntity<?> consultarOrdenes(@RequestParam("file") MultipartFile file,
+                                              @RequestParam(value = "muestra", defaultValue = "5") int muestra) throws IOException {
         if (isNotExcelFile(file.getOriginalFilename())) throw new IllegalArgumentException("Tipo de archivo inválido. Solo se permiten archivos Excel.");
 
         HttpHeaders headers = new HttpHeaders();
@@ -41,7 +42,7 @@ public class SOMSController {
                 .body(
                         excelService.crearReporteOrdenSoms(
                                 ordenSomsService.consultarOrdenes(
-                                        excelService.leerRemisionesDeExcel(file)
+                                        excelService.leerRemisionesDeExcel(file), muestra
                                 )
                         )
                 );
