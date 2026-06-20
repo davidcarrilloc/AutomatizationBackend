@@ -21,25 +21,33 @@ public class FulfillmentController {
     private final FulfillmentService fulfillmentService;
     private final ExcelService excelService;
 
-    @PostMapping(value = "/enviar", consumes = {"multipart/form-data"})
-    public ResponseEntity<?> enviarFulfillment(@RequestParam("file") MultipartFile file) throws IOException {
+    @PostMapping(value = "/reproceso", consumes = {"multipart/form-data"})
+    public ResponseEntity<?> reprocesarFulfillment(@RequestParam("file") MultipartFile file) throws IOException {
         if (isNotExcelFile(file.getOriginalFilename())) throw new IllegalArgumentException("Tipo de archivo inválido. Solo se permiten archivos Excel.");
 
+        return ResponseEntity.accepted().body(
+                fulfillmentService.iniciarReproceso(
+                        excelService.fromExcelToListOfRows(file, "0", "0")
+                                .stream()
+                                .map(row -> row.get(0))
+                                .toList()
+                )
+        );
+    }
+
+    @GetMapping("/reproceso/estatus/{jobId}")
+    public ResponseEntity<?> obtenerEstatusReproceso(@PathVariable String jobId) {
+        return ResponseEntity.ok(fulfillmentService.obtenerEstatus(jobId));
+    }
+
+    @GetMapping("/reproceso/excel/{jobId}")
+    public ResponseEntity<?> obtenerExcelReproceso(@PathVariable String jobId) throws IOException {
         HttpHeaders headers = new HttpHeaders();
-        headers.add(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=Reporte_Fulfillment.xlsx");
+        headers.add(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=Reporte_Fulfillment_" + jobId + ".xlsx");
         return ResponseEntity.ok()
                 .headers(headers)
                 .contentType(MediaType.parseMediaType("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"))
-                .body(
-                        excelService.crearReporteFulfillment(
-                                fulfillmentService.procesarFulfillment(
-                                        excelService.fromExcelToListOfRows(file, "0", "0")
-                                                .stream()
-                                                .map(row -> row.get(0))
-                                                .toList()
-                                )
-                        )
-                );
+                .body(excelService.crearReporteFulfillment(fulfillmentService.obtenerResultados(jobId)));
     }
 
     private boolean isNotExcelFile(String fileName) {

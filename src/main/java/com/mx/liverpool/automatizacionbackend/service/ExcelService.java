@@ -6,6 +6,7 @@ import com.mx.liverpool.automatizacionbackend.model.CorreoTx;
 import com.mx.liverpool.automatizacionbackend.model.Dummy;
 import com.mx.liverpool.automatizacionbackend.model.FulfillmentResult;
 import com.mx.liverpool.automatizacionbackend.model.ComparativaTx;
+import com.mx.liverpool.automatizacionbackend.model.OmsFaltante;
 import com.mx.liverpool.automatizacionbackend.model.OrdenSoms;
 import com.mx.liverpool.automatizacionbackend.model.TxDiffPorHora;
 import lombok.extern.log4j.Log4j2;
@@ -33,6 +34,7 @@ import java.io.OutputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.*;
+import java.util.function.Function;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipInputStream;
 
@@ -105,6 +107,66 @@ public class ExcelService {
             }
 
             workbook.write(out);
+            return out.toByteArray();
+        }
+    }
+
+    private static final String[] ENCABEZADO_FALTANTES_OMS = {
+            "atg_order_id", "atg_ship_grp_id", "Status en OMS", "Response Body", "OrderStatuses",
+            "FECHA_TX_COMPRA", "Diferencia", "error_detail", "id_tipo_tx", "orden_venta",
+            "id", "id_cat_estatus", "pedido", "boleta", "terminal", "remision",
+            "total_cobrado", "total_original", "is_mkp", "zip_code", "recognition_store",
+            "recognition_store_channel", "recognition_store_sub_channel", "tienda_cliente"
+    };
+
+    public byte[] crearReporteFaltantes(List<OmsFaltante> filas,
+                                        Map<String, Map<String, Object>> omsResult,
+                                        Function<OmsFaltante, String> llave) throws IOException {
+        log.info("Entrando a crearReporteFaltantes con {} filas", filas.size());
+        try (Workbook workbook = new XSSFWorkbook();
+             ByteArrayOutputStream out = new ByteArrayOutputStream()) {
+
+            Sheet sheet = workbook.createSheet("Faltantes");
+
+            Row header = sheet.createRow(0);
+            for (int i = 0; i < ENCABEZADO_FALTANTES_OMS.length; i++) {
+                header.createCell(i).setCellValue(ENCABEZADO_FALTANTES_OMS[i]);
+            }
+
+            int rowNum = 1;
+            for (OmsFaltante fila : filas) {
+                Row row = sheet.createRow(rowNum++);
+                Map<String, Object> oms = omsResult.get(llave.apply(fila));
+
+                int col = 0;
+                escribirCelda(row, col++, fila.getAtgOrderId());
+                escribirCelda(row, col++, fila.getAtgShipGrpId());
+                escribirCelda(row, col++, oms == null ? "" : oms.get("status"));
+                escribirCelda(row, col++, oms == null ? "" : oms.get("responseBody"));
+                escribirCelda(row, col++, oms == null ? "" : oms.get("orderStatuses"));
+                escribirCelda(row, col++, fila.getFechaTxCompra());
+                escribirCelda(row, col++, fila.getDiferencia());
+                escribirCelda(row, col++, fila.getErrorDetail());
+                escribirCelda(row, col++, fila.getIdTipoTx());
+                escribirCelda(row, col++, fila.getOrdenVenta());
+                escribirCelda(row, col++, fila.getId());
+                escribirCelda(row, col++, fila.getIdCatEstatus());
+                escribirCelda(row, col++, fila.getPedido());
+                escribirCelda(row, col++, fila.getBoleta());
+                escribirCelda(row, col++, fila.getTerminal());
+                escribirCelda(row, col++, fila.getRemision());
+                escribirCelda(row, col++, fila.getTotalCobrado());
+                escribirCelda(row, col++, fila.getTotalOriginal());
+                escribirCelda(row, col++, fila.getIsMkp());
+                escribirCelda(row, col++, fila.getZipCode());
+                escribirCelda(row, col++, fila.getRecognitionStore());
+                escribirCelda(row, col++, fila.getRecognitionStoreChannel());
+                escribirCelda(row, col++, fila.getRecognitionStoreSubChannel());
+                escribirCelda(row, col, fila.getTiendaCliente());
+            }
+
+            workbook.write(out);
+            log.info("Finalizando crearReporteFaltantes");
             return out.toByteArray();
         }
     }
