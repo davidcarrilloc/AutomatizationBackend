@@ -208,3 +208,29 @@ Procesamiento asíncrono de transacciones por correo identificado por `jobId`.
 | Parámetro | Tipo | Obligatorio | Descripción |
 |---|---|---|---|
 | `jobId` | string (path) | Sí | Identificador del job de procesamiento. |
+
+---
+
+## Reproceso Facade — `/api/v1/reproceso-facade`
+Reenvío masivo de órdenes al servicio I200 (Apigee) a partir de un Excel.
+
+### POST `/procesar`
+- **Descripción:** Recibe un Excel de tres columnas (A: JSON del pedido, B: remisión, C: ItemID). Por cada fila reemplaza el `ItemID` del JSON de la columna A con el valor de la columna C y envía la orden una por una al servicio I200 de Apigee, espaciando las llamadas (2 s entre envíos y 10 s cada 10) para no saturar el servicio. Los errores se registran en la columna `Response`.
+- **Qué se requiere:** `multipart/form-data` con un archivo Excel (.xlsx/.xls) de tres columnas: `A` = JSON del pedido, `B` = remisión, `C` = ItemID. Se omiten las filas cuyo contenido en la columna A no sea un objeto JSON (encabezados o filas vacías).
+- **Qué se obtiene:** `200 OK` con un archivo `.xlsx` (descarga) con columnas: `Request Original` (JSON enviado), `TrackingNumber` (remisión de la columna B) y `Response` (respuesta completa del servicio o el error). El contenido de cada celda se trunca al límite de Excel (32 767 caracteres).
+
+| Parámetro | Tipo | Obligatorio | Descripción |
+|---|---|---|---|
+| `file` | archivo (Excel) | Sí | Excel (.xlsx/.xls) de tres columnas: A=JSON del pedido, B=remisión, C=ItemID. |
+
+## Reproceso Node — `/api/v1/reproceso-node`
+Reenvío masivo de órdenes al servicio I200 (Apigee) corrigiendo el `Store` `F001` a partir de un Excel.
+
+### POST `/procesar`
+- **Descripción:** Recibe un Excel de dos columnas (A: JSON del pedido, B: TrackingNumber). Por cada fila, si algún `OrderLines[].OrderLine.Store` es exactamente `"F001"` lo reemplaza por `"001"` y envía la orden una por una al servicio I200 de Apigee, espaciando las llamadas (1 s entre envíos y 4 s cada 10) para no saturar el servicio. Las órdenes que no contienen `F001` no se envían y se marcan como `No F001` en la columna `Response`. Los errores se registran también en la columna `Response`.
+- **Qué se requiere:** `multipart/form-data` con un archivo Excel (.xlsx/.xls) de dos columnas: `A` = JSON del pedido, `B` = TrackingNumber. Se omiten las filas cuyo contenido en la columna A no sea un objeto JSON (encabezados o filas vacías).
+- **Qué se obtiene:** `200 OK` con un archivo `.xlsx` (descarga) con columnas: `Request Original` (JSON enviado con el Store corregido, o el JSON original si no aplica), `TrackingNumber` (columna B) y `Response` (respuesta completa del servicio, el error, o `No F001` si la orden no se envió). El contenido de cada celda se trunca al límite de Excel (32 767 caracteres).
+
+| Parámetro | Tipo | Obligatorio | Descripción |
+|---|---|---|---|
+| `file` | archivo (Excel) | Sí | Excel (.xlsx/.xls) de dos columnas: A=JSON del pedido, B=TrackingNumber. |

@@ -8,6 +8,10 @@ import com.mx.liverpool.automatizacionbackend.model.FulfillmentResult;
 import com.mx.liverpool.automatizacionbackend.model.ComparativaTx;
 import com.mx.liverpool.automatizacionbackend.model.OmsFaltante;
 import com.mx.liverpool.automatizacionbackend.model.OrdenSoms;
+import com.mx.liverpool.automatizacionbackend.model.ReprocesoFacadeResult;
+import com.mx.liverpool.automatizacionbackend.model.ReprocesoFacadeRow;
+import com.mx.liverpool.automatizacionbackend.model.ReprocesoNodeResult;
+import com.mx.liverpool.automatizacionbackend.model.ReprocesoNodeRow;
 import com.mx.liverpool.automatizacionbackend.model.TxDiffPorHora;
 import lombok.extern.log4j.Log4j2;
 import org.apache.poi.ss.usermodel.*;
@@ -192,6 +196,112 @@ public class ExcelService {
             workbook.write(out);
             return out.toByteArray();
         }
+    }
+
+    public List<ReprocesoFacadeRow> leerReprocesoFacade(MultipartFile file) {
+        log.info("Entrando a leerReprocesoFacade");
+        List<ReprocesoFacadeRow> filas = new ArrayList<>();
+
+        try (InputStream is = file.getInputStream();
+             Workbook workbook = new XSSFWorkbook(is)) {
+            Sheet sheet = workbook.getSheetAt(0);
+            for (Row row : sheet) {
+                String json = leerCelda(row, 0);
+                // Se omiten encabezados o filas sin JSON: la columna A debe contener el objeto a enviar.
+                if (json.isEmpty() || !json.startsWith("{")) continue;
+                filas.add(ReprocesoFacadeRow.builder()
+                        .json(json)
+                        .remision(leerCelda(row, 1))
+                        .itemId(leerCelda(row, 2))
+                        .build());
+            }
+        } catch (IOException e) {
+            throw new RuntimeException("Error al leer el Excel de reproceso: " + e.getMessage());
+        }
+
+        log.info("Finalizando leerReprocesoFacade con {} filas", filas.size());
+        return filas;
+    }
+
+    public byte[] crearReporteReprocesoFacade(List<ReprocesoFacadeResult> resultados) throws IOException {
+        log.info("Entrando a crearReporteReprocesoFacade con {} resultados", resultados.size());
+        try (Workbook workbook = new XSSFWorkbook();
+             ByteArrayOutputStream out = new ByteArrayOutputStream()) {
+
+            Sheet sheet = workbook.createSheet("Reproceso");
+
+            Row header = sheet.createRow(0);
+            header.createCell(0).setCellValue("Request Original");
+            header.createCell(1).setCellValue("TrackingNumber");
+            header.createCell(2).setCellValue("Response");
+
+            int rowNum = 1;
+            for (ReprocesoFacadeResult resultado : resultados) {
+                Row row = sheet.createRow(rowNum++);
+                row.createCell(0).setCellValue(truncarCelda(resultado.getRequestOriginal()));
+                row.createCell(1).setCellValue(truncarCelda(resultado.getTrackingNumber()));
+                row.createCell(2).setCellValue(truncarCelda(resultado.getResponse()));
+            }
+
+            workbook.write(out);
+            log.info("Finalizando crearReporteReprocesoFacade");
+            return out.toByteArray();
+        }
+    }
+
+    public List<ReprocesoNodeRow> leerReprocesoNode(MultipartFile file) {
+        log.info("Entrando a leerReprocesoNode");
+        List<ReprocesoNodeRow> filas = new ArrayList<>();
+
+        try (InputStream is = file.getInputStream();
+             Workbook workbook = new XSSFWorkbook(is)) {
+            Sheet sheet = workbook.getSheetAt(0);
+            for (Row row : sheet) {
+                String json = leerCelda(row, 0);
+                // Se omiten encabezados o filas sin JSON: la columna A debe contener el objeto a enviar.
+                if (json.isEmpty() || !json.startsWith("{")) continue;
+                filas.add(ReprocesoNodeRow.builder()
+                        .json(json)
+                        .trackingNumber(leerCelda(row, 1))
+                        .build());
+            }
+        } catch (IOException e) {
+            throw new RuntimeException("Error al leer el Excel de reproceso node: " + e.getMessage());
+        }
+
+        log.info("Finalizando leerReprocesoNode con {} filas", filas.size());
+        return filas;
+    }
+
+    public byte[] crearReporteReprocesoNode(List<ReprocesoNodeResult> resultados) throws IOException {
+        log.info("Entrando a crearReporteReprocesoNode con {} resultados", resultados.size());
+        try (Workbook workbook = new XSSFWorkbook();
+             ByteArrayOutputStream out = new ByteArrayOutputStream()) {
+
+            Sheet sheet = workbook.createSheet("Reproceso");
+
+            Row header = sheet.createRow(0);
+            header.createCell(0).setCellValue("Request Original");
+            header.createCell(1).setCellValue("TrackingNumber");
+            header.createCell(2).setCellValue("Response");
+
+            int rowNum = 1;
+            for (ReprocesoNodeResult resultado : resultados) {
+                Row row = sheet.createRow(rowNum++);
+                row.createCell(0).setCellValue(truncarCelda(resultado.getRequestOriginal()));
+                row.createCell(1).setCellValue(truncarCelda(resultado.getTrackingNumber()));
+                row.createCell(2).setCellValue(truncarCelda(resultado.getResponse()));
+            }
+
+            workbook.write(out);
+            log.info("Finalizando crearReporteReprocesoNode");
+            return out.toByteArray();
+        }
+    }
+
+    private String leerCelda(Row row, int columna) {
+        Cell cell = row.getCell(columna, Row.MissingCellPolicy.RETURN_BLANK_AS_NULL);
+        return cell == null ? "" : dataFormatter.formatCellValue(cell).trim();
     }
 
     public List<String> leerRemisionesDeExcel(MultipartFile file) {

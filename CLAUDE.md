@@ -309,3 +309,26 @@ public class NombreClient {
 - **Streams** — use `.stream()`, `.filter()`, `.map()`, `.toList()` for collections; use `.getFirst()` / `.getLast()`
 - **Date/time** — use `LocalDateTime`; manipulate with `.minusDays()`, `.withHour()`, etc.
 - **Immutable maps/lists** — use `Map.of()` and `List.of()` for static data; `HashMap`/`ArrayList` for mutable
+- **Documentación** — toda alta o modificación de endpoint actualiza su documentación en el mismo cambio: Swagger + `docs/Documentacion_Endpoints.md` (ver sección `## Documentación`)
+
+---
+
+## Documentación
+
+**Regla obligatoria:** cada vez que se agregue o modifique un endpoint/controller, se debe implementar/actualizar su documentación correspondiente **en el mismo cambio**. Un endpoint sin documentación se considera incompleto.
+
+### Swagger (anotaciones OpenAPI)
+
+Usar anotaciones de `io.swagger.v3.oas.annotations.*` (ya disponible vía `springdoc-openapi-starter-webmvc-ui`):
+
+- **Clase controller** — `@Tag(name = "...", description = "...")` con el nombre del recurso.
+- **Cada método** — `@Operation(summary = "...", description = "...")`: descripción corta de qué hace, qué requiere y qué devuelve.
+- **Parámetros** — `@Parameter(description = "...", example = "...")` en `@RequestParam` (incluido `MultipartFile`, indicando el formato aceptado: CSV/Excel/TXT/ZIP) y `@PathVariable`.
+- **Request DTOs** — `@Schema(description = "...", example = "...")` en los campos del payload.
+- **Respuestas** — `@ApiResponse(responseCode = "200"/"202", description = "...")`; para descargas `.xlsx` indicarlo en la descripción.
+
+### Markdown
+
+Actualizar `docs/Documentacion_Endpoints.md`: una subsección por endpoint con los **4 puntos fijos**: **Descripción**, **Qué se requiere**, **Qué se obtiene** y **Parámetros** (tabla nombre/tipo/obligatorio/descripción).
+
+Textos de documentación en español; sin comentarios decorativos.
