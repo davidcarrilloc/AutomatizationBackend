@@ -1,6 +1,7 @@
 package com.mx.liverpool.automatizacionbackend.controller;
 
 import com.mx.liverpool.automatizacionbackend.service.ExcelService;
+import com.mx.liverpool.automatizacionbackend.service.ReprocesoFacadeService;
 import com.mx.liverpool.automatizacionbackend.service.ReprocesoNodeService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -17,14 +18,40 @@ import org.springframework.web.multipart.MultipartFile;
 import java.io.IOException;
 
 @RestController
-@RequestMapping("/api/v1/reproceso-node")
+@RequestMapping("/api/v1/reproceso")
 @CrossOrigin(origins = "*")
 @RequiredArgsConstructor
 @Log4j2
-@Tag(name = "Reproceso Node", description = "Reenvío masivo de órdenes al servicio I200 (Apigee) corrigiendo el Store F001 a partir de un Excel")
-public class ReprocesoNodeController {
+@Tag(name = "Reproceso", description = "Reenvío masivo de órdenes al servicio I200 (Apigee) a partir de un Excel")
+public class ReprocesoController {
+    private final ReprocesoFacadeService reprocesoFacadeService;
     private final ReprocesoNodeService reprocesoNodeService;
     private final ExcelService excelService;
+
+    @Operation(summary = "Reprocesar órdenes contra I200",
+            description = "Recibe un Excel de tres columnas (A: JSON del pedido, B: remisión, C: ItemID). Por cada fila " +
+                    "reemplaza el ItemID del JSON con el valor de la columna C y envía la orden una por una al servicio I200 " +
+                    "de Apigee, espaciando las llamadas (1 s entre envíos y 4 s cada 10). Devuelve un .xlsx (descarga) con " +
+                    "columnas: Request Original, TrackingNumber y Response.")
+    @ApiResponse(responseCode = "200", description = "Archivo .xlsx (descarga) con el resultado del reproceso")
+    @PostMapping(value = "/facade/procesar", consumes = {"multipart/form-data"})
+    public ResponseEntity<?> procesarFacade(
+            @Parameter(description = "Archivo Excel (.xlsx/.xls) de tres columnas: A=JSON, B=remisión, C=ItemID") @RequestParam("file") MultipartFile file) throws IOException {
+        if (excelService.esArchivoNoExcel(file.getOriginalFilename())) throw new IllegalArgumentException("Tipo de archivo inválido. Solo se permiten archivos Excel.");
+
+        HttpHeaders headers = new HttpHeaders();
+        headers.add(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=Reporte_Reproceso_Facade.xlsx");
+        return ResponseEntity.ok()
+                .headers(headers)
+                .contentType(MediaType.parseMediaType("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"))
+                .body(
+                        excelService.crearReporteReproceso(
+                                reprocesoFacadeService.reprocesar(
+                                        excelService.leerReprocesoFacade(file)
+                                )
+                        )
+                );
+    }
 
     @Operation(summary = "Reprocesar órdenes corrigiendo el Store contra I200",
             description = "Recibe un Excel de dos columnas (A: JSON del pedido, B: TrackingNumber). Por cada fila, si algún " +
@@ -33,10 +60,10 @@ public class ReprocesoNodeController {
                     "envían y se marcan como \"No F001\". Devuelve un .xlsx (descarga) con columnas: Request Original, " +
                     "TrackingNumber y Response.")
     @ApiResponse(responseCode = "200", description = "Archivo .xlsx (descarga) con el resultado del reproceso")
-    @PostMapping(value = "/procesar", consumes = {"multipart/form-data"})
-    public ResponseEntity<?> procesarReproceso(
+    @PostMapping(value = "/node/procesar", consumes = {"multipart/form-data"})
+    public ResponseEntity<?> procesarNode(
             @Parameter(description = "Archivo Excel (.xlsx/.xls) de dos columnas: A=JSON, B=TrackingNumber") @RequestParam("file") MultipartFile file) throws IOException {
-        if (isNotExcelFile(file.getOriginalFilename())) throw new IllegalArgumentException("Tipo de archivo inválido. Solo se permiten archivos Excel.");
+        if (excelService.esArchivoNoExcel(file.getOriginalFilename())) throw new IllegalArgumentException("Tipo de archivo inválido. Solo se permiten archivos Excel.");
 
         HttpHeaders headers = new HttpHeaders();
         headers.add(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=Reporte_Reproceso_Node.xlsx");
@@ -44,15 +71,11 @@ public class ReprocesoNodeController {
                 .headers(headers)
                 .contentType(MediaType.parseMediaType("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"))
                 .body(
-                        excelService.crearReporteReprocesoNode(
+                        excelService.crearReporteReproceso(
                                 reprocesoNodeService.reprocesar(
                                         excelService.leerReprocesoNode(file)
                                 )
                         )
                 );
-    }
-
-    private boolean isNotExcelFile(String fileName) {
-        return fileName == null || !(fileName.toLowerCase().endsWith(".xlsx") || fileName.toLowerCase().endsWith(".xls"));
     }
 }

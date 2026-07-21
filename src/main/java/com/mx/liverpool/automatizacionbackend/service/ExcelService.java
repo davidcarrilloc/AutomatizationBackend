@@ -8,10 +8,9 @@ import com.mx.liverpool.automatizacionbackend.model.FulfillmentResult;
 import com.mx.liverpool.automatizacionbackend.model.ComparativaTx;
 import com.mx.liverpool.automatizacionbackend.model.OmsFaltante;
 import com.mx.liverpool.automatizacionbackend.model.OrdenSoms;
-import com.mx.liverpool.automatizacionbackend.model.ReprocesoFacadeResult;
 import com.mx.liverpool.automatizacionbackend.model.ReprocesoFacadeRow;
-import com.mx.liverpool.automatizacionbackend.model.ReprocesoNodeResult;
 import com.mx.liverpool.automatizacionbackend.model.ReprocesoNodeRow;
+import com.mx.liverpool.automatizacionbackend.model.ReprocesoResult;
 import com.mx.liverpool.automatizacionbackend.model.TxDiffPorHora;
 import lombok.extern.log4j.Log4j2;
 import org.apache.poi.ss.usermodel.*;
@@ -27,6 +26,7 @@ import org.openxmlformats.schemas.drawingml.x2006.chart.CTAreaChart;
 import org.openxmlformats.schemas.drawingml.x2006.chart.STGrouping;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+import org.springframework.util.StringUtils;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.ByteArrayInputStream;
@@ -223,8 +223,8 @@ public class ExcelService {
         return filas;
     }
 
-    public byte[] crearReporteReprocesoFacade(List<ReprocesoFacadeResult> resultados) throws IOException {
-        log.info("Entrando a crearReporteReprocesoFacade con {} resultados", resultados.size());
+    public byte[] crearReporteReproceso(List<ReprocesoResult> resultados) throws IOException {
+        log.info("Entrando a crearReporteReproceso con {} resultados", resultados.size());
         try (Workbook workbook = new XSSFWorkbook();
              ByteArrayOutputStream out = new ByteArrayOutputStream()) {
 
@@ -236,7 +236,7 @@ public class ExcelService {
             header.createCell(2).setCellValue("Response");
 
             int rowNum = 1;
-            for (ReprocesoFacadeResult resultado : resultados) {
+            for (ReprocesoResult resultado : resultados) {
                 Row row = sheet.createRow(rowNum++);
                 row.createCell(0).setCellValue(truncarCelda(resultado.getRequestOriginal()));
                 row.createCell(1).setCellValue(truncarCelda(resultado.getTrackingNumber()));
@@ -244,9 +244,13 @@ public class ExcelService {
             }
 
             workbook.write(out);
-            log.info("Finalizando crearReporteReprocesoFacade");
+            log.info("Finalizando crearReporteReproceso");
             return out.toByteArray();
         }
+    }
+
+    public boolean esArchivoNoExcel(String fileName) {
+        return !(StringUtils.endsWithIgnoreCase(fileName, ".xlsx") || StringUtils.endsWithIgnoreCase(fileName, ".xls"));
     }
 
     public List<ReprocesoNodeRow> leerReprocesoNode(MultipartFile file) {
@@ -271,32 +275,6 @@ public class ExcelService {
 
         log.info("Finalizando leerReprocesoNode con {} filas", filas.size());
         return filas;
-    }
-
-    public byte[] crearReporteReprocesoNode(List<ReprocesoNodeResult> resultados) throws IOException {
-        log.info("Entrando a crearReporteReprocesoNode con {} resultados", resultados.size());
-        try (Workbook workbook = new XSSFWorkbook();
-             ByteArrayOutputStream out = new ByteArrayOutputStream()) {
-
-            Sheet sheet = workbook.createSheet("Reproceso");
-
-            Row header = sheet.createRow(0);
-            header.createCell(0).setCellValue("Request Original");
-            header.createCell(1).setCellValue("TrackingNumber");
-            header.createCell(2).setCellValue("Response");
-
-            int rowNum = 1;
-            for (ReprocesoNodeResult resultado : resultados) {
-                Row row = sheet.createRow(rowNum++);
-                row.createCell(0).setCellValue(truncarCelda(resultado.getRequestOriginal()));
-                row.createCell(1).setCellValue(truncarCelda(resultado.getTrackingNumber()));
-                row.createCell(2).setCellValue(truncarCelda(resultado.getResponse()));
-            }
-
-            workbook.write(out);
-            log.info("Finalizando crearReporteReprocesoNode");
-            return out.toByteArray();
-        }
     }
 
     private String leerCelda(Row row, int columna) {
