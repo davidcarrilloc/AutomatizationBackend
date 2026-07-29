@@ -13,6 +13,7 @@ import org.springframework.http.MediaType;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 import org.springframework.web.reactive.function.client.WebClient;
+import org.springframework.web.reactive.function.client.WebClientResponseException;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
@@ -205,11 +206,12 @@ public class FulfillmentService {
                 .bodyToMono(String.class)
                 .map(json -> construirResultado(trackingNumber, json))
                 .onErrorResume(e -> {
-                    log.error("Error consultando fulfillment para el tracking {}: {}", trackingNumber, e.getMessage());
+                    String body = e instanceof WebClientResponseException w ? w.getResponseBodyAsString() : "";
+                    log.error("Error consultando fulfillment para el tracking {}: {} - {}", trackingNumber, e.getMessage(), body);
                     return Mono.just(FulfillmentResult.builder()
                             .trackingNumber(trackingNumber)
-                            .response("\"error\": \"" + e.getMessage() + "\",")
-                            .json(e.getMessage())
+                            .response("\"error\": \"" + e.getMessage() + "\", \"body\": " + body + ",")
+                            .json(body.isBlank() ? e.getMessage() : body)
                             .build());
                 });
     }
@@ -254,6 +256,6 @@ public class FulfillmentService {
                 .filter(e -> "SUCCESS".equalsIgnoreCase(e.getValue()))
                 .map(e -> "\"" + e.getKey() + "\": \"" + e.getValue() + "\"")
                 .reduce((a, b) -> a + ", " + b)
-                .orElse("");
+                .orElseGet(() -> estatus.values().stream().allMatch("NOT_EXECUTE"::equalsIgnoreCase) ? "NOT_EXECUTE" : "");
     }
 }
