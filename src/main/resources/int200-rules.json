@@ -1,0 +1,107 @@
+{
+  "_nota": "Reglas de INT200_SL_ATG_APV_OMS_Order_Load.xlsx, hoja 'Input Message'. Un campo entra aquí si su fila tiene Used=Y y O/M=M, y la fila de sección que lo encabeza también. Por eso quedan fuera PersonInfoContact (sección O), OrderLine.Extn (sección O), LinePriceInfo.RetailPrice y PersonInfo*.DayPhone (M pero Used=N). Reference.Value es M en la hoja pero llega vacío de forma legítima (SellerName, ExtnComments): solo se exige Name.",
+  "bloques": [
+    {
+      "path": "",
+      "campos": [
+        { "nombre": "CustomerEMailID", "longitud": 60 },
+        { "nombre": "CustomerPhoneNo", "longitud": 40 },
+        { "nombre": "CustomerFirstName", "longitud": 64 },
+        { "nombre": "CustomerLastName", "longitud": 64 },
+        { "nombre": "DocumentType", "longitud": 40, "valorDefault": "0001" },
+        { "nombre": "EnterpriseCode", "longitud": 24, "valorDefault": "Liverpool" },
+        { "nombre": "EntryType", "longitud": 20, "catalogo": "entryType" },
+        { "nombre": "OrderDate", "longitud": 25, "valorDefault": "sysdate" },
+        { "nombre": "OrderName", "longitud": 15 },
+        { "nombre": "OrderNo", "longitud": 40 },
+        { "nombre": "OrderType", "longitud": 20, "catalogo": "orderType" },
+        { "nombre": "SellerOrganizationCode", "longitud": 24, "valorDefault": "Liverpool" },
+        { "nombre": "BillToID", "longitud": 40 }
+      ]
+    },
+    {
+      "path": "OrderLines[].OrderLine",
+      "campos": [
+        { "nombre": "DeliveryMethod", "longitud": 40 },
+        { "nombre": "DepartmentCode", "longitud": 20 },
+        { "nombre": "LineType", "longitud": 20, "catalogo": "lineType" },
+        { "nombre": "OrderedQty", "longitud": 14 },
+        { "nombre": "PrimeLineNo", "longitud": 5, "valorDefault": "1" },
+        { "nombre": "SubLineNo", "longitud": 5, "valorDefault": "1" },
+        { "nombre": "ConditionVariable1", "longitud": 40, "valorDefault": "OMS" },
+        { "nombre": "ConditionVariable2", "longitud": 40, "catalogo": "conditionVariable2" }
+      ]
+    },
+    {
+      "path": "OrderLines[].OrderLine.Item",
+      "campos": [
+        { "nombre": "ItemDesc", "longitud": 500 },
+        { "nombre": "ItemID", "longitud": 40 },
+        { "nombre": "UnitOfMeasure", "longitud": 40 }
+      ]
+    },
+    {
+      "path": "OrderLines[].OrderLine.LinePriceInfo",
+      "campos": [
+        { "nombre": "IsPriceLocked", "longitud": 1, "valorDefault": "N" },
+        { "nombre": "UnitPrice", "longitud": 19, "valorDefault": "0" }
+      ]
+    },
+    {
+      "path": "OrderLines[].OrderLine.References.Reference[]",
+      "campos": [
+        { "nombre": "Name", "longitud": 40 }
+      ]
+    },
+    {
+      "path": "PersonInfoShipTo",
+      "campos": [
+        { "nombre": "AddressLine1", "longitud": 70 },
+        { "nombre": "AddressLine2", "longitud": 70 },
+        { "nombre": "AddressLine3", "longitud": 70, "valorDefault": "Sin numero en caso de no contar con el dato" },
+        { "nombre": "City", "longitud": 35 },
+        { "nombre": "Country", "longitud": 40, "valorDefault": "MX" },
+        { "nombre": "EMailID", "longitud": 150 },
+        { "nombre": "FirstName", "longitud": 64 },
+        { "nombre": "LastName", "longitud": 64 },
+        { "nombre": "State", "longitud": 35 },
+        { "nombre": "ZipCode", "longitud": 35 }
+      ]
+    },
+    {
+      "path": "PersonInfoBillTo",
+      "campos": [
+        { "nombre": "AddressLine1", "longitud": 70 },
+        { "nombre": "AddressLine2", "longitud": 70 },
+        { "nombre": "AddressLine3", "longitud": 70, "valorDefault": "Sin numero en caso de no contar con el dato" },
+        { "nombre": "City", "longitud": 35 },
+        { "nombre": "Country", "longitud": 40, "valorDefault": "MX" },
+        { "nombre": "EMailID", "longitud": 150 },
+        { "nombre": "FirstName", "longitud": 64 },
+        { "nombre": "LastName", "longitud": 64 },
+        { "nombre": "State", "longitud": 35 },
+        { "nombre": "ZipCode", "longitud": 35 }
+      ]
+    },
+    {
+      "path": "References.Reference[]",
+      "campos": [
+        { "nombre": "Name", "longitud": 40 }
+      ]
+    }
+  ],
+  "catalogos": {
+    "entryType": ["WEB", "APV", "POSF", "KIO"],
+    "orderType": ["Personal", "Gift Registry", "MKP"],
+    "lineType": ["SL", "SI"],
+    "conditionVariable2": ["SHP", "PICK"]
+  },
+  "vaciosEsperados": [
+    "OrderLines[].OrderLine.ShipNode",
+    "OrderLines[].OrderLine.CarrierServiceCode"
+  ],
+  "discrepancias": {
+    "NotificationType": ["LIV", "SUB", "PBA", "PBK", "WEL", "WSO", "GAP", "DCK",
+                         "BNR", "TRU", "BRU", "GAL", "DPS", "FAB", "DST", "LST"]
+  }
+}

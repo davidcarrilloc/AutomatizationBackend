@@ -53,6 +53,16 @@ public class FulfillmentController {
         return ResponseEntity.ok(fulfillmentService.obtenerEstatus(jobId));
     }
 
+    @Operation(summary = "Listar los jobs de reproceso",
+            description = "Devuelve todos los jobs de reproceso registrados desde el último arranque de la aplicación, " +
+                    "del más reciente al más viejo. El campo estatus distingue los que siguen corriendo (EN_PROCESO, con " +
+                    "fin en null) de los que ya acabaron (COMPLETADO o COMPLETADO_CON_ERRORES).")
+    @ApiResponse(responseCode = "200", description = "Lista de jobs con su avance")
+    @GetMapping("/reproceso/jobs")
+    public ResponseEntity<?> obtenerJobsReproceso() {
+        return ResponseEntity.ok(fulfillmentService.obtenerJobs());
+    }
+
     @Operation(summary = "Descargar resultados del reproceso",
             description = "Genera un .xlsx (descarga) con los resultados del reproceso de fulfillment identificado por jobId.")
     @ApiResponse(responseCode = "200", description = "Archivo .xlsx (descarga) con los resultados del reproceso")

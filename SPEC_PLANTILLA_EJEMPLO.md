@@ -30,6 +30,14 @@ Necesito que actualices una automatización con las siguientes condiciones:
 
 **Reutiliza:** `FulfillmentController.enviarFulfillment` y su servicio.
 
+## Skills
+
+- **`reutilizar-codigo`** — siempre. Aquí sirvió para el lector del Excel de una columna y para la
+  descarga del `.xlsx` desde el controller.
+- **Caso A**, el brief pide `jobId` y estatus consultable → **`job-asincrono`**. De ahí salen los 4
+  endpoints, el `@Lazy self` y el diferido por error de gateway (hallazgos 1, 3, 4 y 5).
+- **Caso B**, se consulta el endpoint de fulfillment de OGCP → **`api-externa`**.
+
 ## Cierre
 
 **Componentes:**

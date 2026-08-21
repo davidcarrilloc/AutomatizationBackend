@@ -1,6 +1,7 @@
 package com.mx.liverpool.automatizacionbackend.controller;
 
 import com.mx.liverpool.automatizacionbackend.service.ExcelService;
+import com.mx.liverpool.automatizacionbackend.service.ReprocesoBillToService;
 import com.mx.liverpool.automatizacionbackend.service.ReprocesoFacadeService;
 import com.mx.liverpool.automatizacionbackend.service.ReprocesoNodeService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -26,6 +27,7 @@ import java.io.IOException;
 public class ReprocesoController {
     private final ReprocesoFacadeService reprocesoFacadeService;
     private final ReprocesoNodeService reprocesoNodeService;
+    private final ReprocesoBillToService reprocesoBillToService;
     private final ExcelService excelService;
 
     @Operation(summary = "Reprocesar órdenes contra I200",
@@ -73,6 +75,34 @@ public class ReprocesoController {
                 .body(
                         excelService.crearReporteReproceso(
                                 reprocesoNodeService.reprocesar(
+                                        excelService.leerReprocesoNode(file)
+                                )
+                        )
+                );
+    }
+
+    @Operation(summary = "Reprocesar órdenes rellenando PersonInfoBillTo contra I200",
+            description = "Recibe un Excel de dos columnas (A: JSON del pedido, B: TrackingNumber). Por cada fila copia a " +
+                    "\"PersonInfoBillTo\" los campos de \"PersonInfoShipTo\" que el BillTo trae vacíos (ausentes, nulos, vacíos " +
+                    "o con solo espacios), respetando los que ya tienen valor propio y saltando las extensiones LExtn. Si tras " +
+                    "el merge queda vacío algún campo obligatorio del INT200 la orden no se envía y se reporta cuál falta; los " +
+                    "obligatorios con valor por omisión (Country, AddressLine3) se rellenan y sí se envían. Las órdenes que se " +
+                    "envían van una por una al servicio I200 de Apigee, espaciando las llamadas (1 s entre envíos y 4 s cada 10). " +
+                    "Devuelve un .xlsx (descarga) con columnas: Request Original, TrackingNumber y Response.")
+    @ApiResponse(responseCode = "200", description = "Archivo .xlsx (descarga) con el resultado del reproceso")
+    @PostMapping(value = "/billto/procesar", consumes = {"multipart/form-data"})
+    public ResponseEntity<?> procesarBillTo(
+            @Parameter(description = "Archivo Excel (.xlsx/.xls) de dos columnas: A=JSON, B=TrackingNumber") @RequestParam("file") MultipartFile file) throws IOException {
+        if (excelService.esArchivoNoExcel(file.getOriginalFilename())) throw new IllegalArgumentException("Tipo de archivo inválido. Solo se permiten archivos Excel.");
+
+        HttpHeaders headers = new HttpHeaders();
+        headers.add(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=Reporte_Reproceso_BillTo.xlsx");
+        return ResponseEntity.ok()
+                .headers(headers)
+                .contentType(MediaType.parseMediaType("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"))
+                .body(
+                        excelService.crearReporteReproceso(
+                                reprocesoBillToService.reprocesar(
                                         excelService.leerReprocesoNode(file)
                                 )
                         )

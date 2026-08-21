@@ -153,6 +153,15 @@ Reproceso asíncrono de fulfillment identificado por `jobId`.
 |---|---|---|---|
 | `jobId` | string (path) | Sí | Identificador del job de reproceso. |
 
+### GET `/reproceso/jobs`
+- **Descripción:** Lista todos los jobs de reproceso registrados desde el último arranque de la aplicación, del más reciente al más viejo. Sirve para recuperar un `jobId` que se perdió y para ver de un vistazo qué sigue corriendo. Los jobs viven en memoria: un reinicio de la aplicación vacía la lista.
+- **Qué se requiere:** Nada.
+- **Qué se obtiene:** `200 OK` con la lista de jobs, cada uno con `jobId`, `estatus`, `totalTrackings`, `procesados`, `conErrorGateway`, `reprocesados`, `trackingActual`, `inicio` y `fin`. Los que siguen corriendo traen `estatus: EN_PROCESO` y `fin: null`; los terminados, `COMPLETADO` o `COMPLETADO_CON_ERRORES` con su `fin`.
+
+| Parámetro | Tipo | Obligatorio | Descripción |
+|---|---|---|---|
+| — | — | — | Ninguno. |
+
 ### GET `/reproceso/excel/{jobId}`
 - **Descripción:** Descarga los resultados del reproceso.
 - **Qué se requiere:** `jobId` en la ruta.
@@ -161,6 +170,47 @@ Reproceso asíncrono de fulfillment identificado por `jobId`.
 | Parámetro | Tipo | Obligatorio | Descripción |
 |---|---|---|---|
 | `jobId` | string (path) | Sí | Identificador del job de reproceso. |
+
+---
+
+## Fulfillment TXT — `/api/v1/fulfillment-txt`
+Consulta masiva del `statusOms` de una lista de trackingnumbers, identificada por `jobId`. Golpea el mismo servicio de fulfillment que `/api/v1/fulfillment`, pero devuelve una sola columna de resultado y **varios jobs pueden correr al mismo tiempo**: cada uno se ejecuta en su propio hilo virtual.
+
+### POST `/`
+- **Descripción:** Inicia una consulta asíncrona del `statusOms` a partir de un `.txt`. Los trackings se rellenan a 10 dígitos con ceros a la izquierda y se consultan **uno por uno, sin pausas** entre llamadas. El tracking cuya petición falla no detiene la corrida: se encola al final y se reintenta en las rondas de reproceso (`status-oms.max-rondas-reproceso`, 3 por omisión); si tras la última ronda sigue fallando, se conserva su error en el reporte. Las respuestas que sí llegaron del servicio (`UNKNOWN`, `null`, `PARSE_ERROR`) no se reintentan.
+- **Qué se requiere:** `multipart/form-data` con un archivo `.txt` con un trackingnumber por línea (las líneas vacías se ignoran).
+- **Qué se obtiene:** `202 Accepted` con el estatus inicial del job, incluido el `jobId` para consultar avance y descargar resultados.
+
+| Parámetro | Tipo | Obligatorio | Descripción |
+|---|---|---|---|
+| `file` | archivo (.txt) | Sí | Archivo de texto con un trackingnumber por línea. |
+
+### GET `/estatus/{jobId}`
+- **Descripción:** Consulta el avance de la consulta masiva.
+- **Qué se requiere:** `jobId` en la ruta.
+- **Qué se obtiene:** `200 OK` con `jobId`, `estatus`, `totalTrackings`, `procesados`, `conErrorGateway`, `reprocesados`, `trackingActual`, `inicio` y `fin`. Si el `jobId` no existe, `400`.
+
+| Parámetro | Tipo | Obligatorio | Descripción |
+|---|---|---|---|
+| `jobId` | string (path) | Sí | Identificador del job de consulta. |
+
+### GET `/jobs`
+- **Descripción:** Lista todos los jobs de consulta registrados desde el último arranque de la aplicación, del más reciente al más viejo. Sirve para recuperar un `jobId` que se perdió y para ver cuáles siguen corriendo en paralelo. Los jobs viven en memoria: un reinicio de la aplicación vacía la lista.
+- **Qué se requiere:** Nada.
+- **Qué se obtiene:** `200 OK` con la lista de jobs. Los que siguen corriendo traen `estatus: EN_PROCESO` y `fin: null`; los terminados, `COMPLETADO` o `COMPLETADO_CON_ERRORES` con su `fin`.
+
+| Parámetro | Tipo | Obligatorio | Descripción |
+|---|---|---|---|
+| — | — | — | Ninguno. |
+
+### GET `/excel/{jobId}`
+- **Descripción:** Descarga los resultados de la consulta masiva.
+- **Qué se requiere:** `jobId` en la ruta.
+- **Qué se obtiene:** `200 OK` con un archivo `.xlsx` (descarga) de dos columnas, `TrackingNumber` y `StatusOms`. Cuando no hay un valor, la celda trae `UNKNOWN` (la respuesta no contiene `statusOms`), `null` (viene la llave con valor nulo), `PARSE_ERROR` (la respuesta no se pudo interpretar) o `ERROR_PETICION` (la llamada al servicio falló en todas las rondas). Se puede descargar aunque el job siga en proceso: trae lo que lleve hasta ese momento.
+
+| Parámetro | Tipo | Obligatorio | Descripción |
+|---|---|---|---|
+| `jobId` | string (path) | Sí | Identificador del job de consulta. |
 
 ---
 
@@ -188,29 +238,6 @@ Reportes y consultas sobre órdenes del sistema SOMS.
 
 ---
 
-## Correos — `/api/v1/correos`
-Procesamiento asíncrono de transacciones por correo identificado por `jobId`.
-
-### POST `/transaccionesPorCorreo`
-- **Descripción:** Inicia un procesamiento asíncrono de transacciones a partir de correos segmentados.
-- **Qué se requiere:** `multipart/form-data` con un archivo `.zip`.
-- **Qué se obtiene:** `202 Accepted` con el `jobId` para consultar el estatus.
-
-| Parámetro | Tipo | Obligatorio | Descripción |
-|---|---|---|---|
-| `file` | archivo (.zip) | Sí | Archivo ZIP con los correos segmentados. |
-
-### GET `/transaccionesPorCorreo/estatus/{jobId}`
-- **Descripción:** Consulta el estatus actual del procesamiento.
-- **Qué se requiere:** `jobId` en la ruta.
-- **Qué se obtiene:** `200 OK` con el estatus del job.
-
-| Parámetro | Tipo | Obligatorio | Descripción |
-|---|---|---|---|
-| `jobId` | string (path) | Sí | Identificador del job de procesamiento. |
-
----
-
 ## Reproceso — `/api/v1/reproceso`
 Reenvío masivo de órdenes al servicio I200 (Apigee) a partir de un Excel.
 
@@ -231,3 +258,93 @@ Reenvío masivo de órdenes al servicio I200 (Apigee) a partir de un Excel.
 | Parámetro | Tipo | Obligatorio | Descripción |
 |---|---|---|---|
 | `file` | archivo (Excel) | Sí | Excel (.xlsx/.xls) de dos columnas: A=JSON del pedido, B=TrackingNumber. |
+
+### POST `/billto/procesar`
+- **Descripción:** Recibe un Excel de dos columnas (A: JSON del pedido, B: TrackingNumber) y rellena el nodo `PersonInfoBillTo`, que el INT200 exige, con los datos de `PersonInfoShipTo`. Es un **merge, no una copia**: se toma cada campo de `PersonInfoShipTo` (saltando las extensiones `LExtnAddressLineNINT`, `LExtnAddressLineEDIFICIO` y `LExtnATGADRID`) y solo se escribe en `PersonInfoBillTo` cuando ahí está vacío — llave ausente, `null`, `""` o solo espacios. Lo que el BillTo ya trae con valor propio se respeta. Si tras el merge queda vacío un campo obligatorio de `PersonInfoBillTo` según `int200-rules.json`, la orden **no se envía** y se reporta cuál falta; los dos obligatorios con valor por omisión (`Country` = `MX`, `AddressLine3`) se rellenan con ese valor y la orden sí se envía. Las órdenes completas se envían una por una al servicio I200 de Apigee, espaciando las llamadas (1 s entre envíos y 4 s cada 10). Se acepta el JSON con o sin la llave envolvente `Order`.
+- **Qué se requiere:** `multipart/form-data` con un archivo Excel (.xlsx/.xls) de dos columnas: `A` = JSON del pedido, `B` = TrackingNumber. Se omiten las filas cuyo contenido en la columna A no sea un objeto JSON (encabezados o filas vacías).
+- **Qué se obtiene:** `200 OK` con un archivo `.xlsx` (descarga) con columnas: `Request Original` (JSON enviado con el `PersonInfoBillTo` completo, o el JSON original si la fila no se envió), `TrackingNumber` (columna B) y `Response`, que toma una de cuatro formas:
+
+| Columna `Response` | Significado |
+|---|---|
+| `Enviado \| <respuesta>` | La orden se envió y I200 respondió. Si se aplicó un valor por omisión se indica: `Enviado (default Country="MX") \| …` |
+| `Falta: PersonInfoBillTo.State, …` | Quedaron obligatorios vacíos tras el merge; la orden no se envió |
+| `Falta el nodo PersonInfoShipTo, no hay de donde copiar` | El JSON no trae el nodo de origen o viene sin datos; la orden no se envió |
+| `"error": "…"` | La llamada a I200 falló, o el JSON de la columna A no se pudo interpretar |
+
+El contenido de cada celda se trunca al límite de Excel (32 767 caracteres).
+
+| Parámetro | Tipo | Obligatorio | Descripción |
+|---|---|---|---|
+| `file` | archivo (Excel) | Sí | Excel (.xlsx/.xls) de dos columnas: A=JSON del pedido, B=TrackingNumber. |
+
+---
+
+## Validador — `/api/v1/validador`
+Diagnóstico de órdenes contra el contrato INT200 (`INT200_SL_ATG_APV_OMS_Order_Load`) antes de enviarlas a OMS/SOMS. No envía nada a Apigee ni corrige el JSON: solo reporta.
+
+### POST `/procesar`
+- **Descripción:** Recibe un Excel de dos columnas (A: JSON del pedido, B: remisión). Por cada fila revisa el JSON contra las reglas del INT200 y separa los hallazgos en dos columnas: los **campos obligatorios que faltan** y los **errores y casos borde**. Tolera el JSON con o sin la llave envolvente `"Order"`. Las reglas viven en `src/main/resources/int200-rules.json` (campos obligatorios por bloque, longitudes, valores por default y catálogos), por lo que un cambio de catálogo no requiere recompilar. Los hallazgos usan los códigos del contrato: `CTR-002` obligatorio vacío que se rellena con el default de la definición, `CTR-004` valor fuera de catálogo, `CTR-005` longitud excedida, `CTR-006` mojibake detectado (se reporta en cualquier campo del payload, no solo en los obligatorios), `CTR-008` discrepancia conocida pendiente de confirmar con OMS, `CTR-010` campo que la definición pide vacío y llega poblado.
+- **Qué se requiere:** `multipart/form-data` con un archivo Excel (.xlsx/.xls) de dos columnas: `A` = JSON del pedido, `B` = remisión. Se omiten las filas cuyo contenido en la columna A no sea un objeto JSON (encabezados o filas vacías).
+- **Qué se obtiene:** `200 OK` con un archivo `.xlsx` (descarga) con columnas: `JSON` (el request original sin modificar), `Remisión` (columna B), `Validaciones` (rutas de los campos obligatorios ausentes, o vacíos sin default, separadas por comas — por ejemplo `PersonInfoBillTo.AddressLine2`; si falta un bloque completo se reporta la ruta del bloque) y `Errores` (hallazgos con código `CTR-*` separados por comas; si el JSON no se puede parsear, `Validaciones` queda vacía y aquí aparece `JSON inválido: ...`). El contenido de cada celda se trunca al límite de Excel (32 767 caracteres).
+
+| Parámetro | Tipo | Obligatorio | Descripción |
+|---|---|---|---|
+| `file` | archivo (Excel) | Sí | Excel (.xlsx/.xls) de dos columnas: A=JSON del pedido, B=remisión. |
+
+### POST `/marketplace`
+- **Descripción:** Comprueba qué se le está mandando a Entrada Única. Recibe un Excel de dos columnas (A: REQUEST de marketplace, B: tracking number) y de cada REQUEST extrae la remisión (`commercial_id`) y, por cada elemento de `offers`, el `offer_id` y el sku (el `value` del elemento de `order_line_additional_fields` cuyo `code` es `product-sap-sku-id`). **Una fila de entrada puede producir varios registros de salida:** si un REQUEST trae 3 offers, se escriben 3 filas con la misma remisión y distinto offerId/sku. Es extracción local: no consulta ningún sistema externo. El tracking number solo se usa para identificar la fila en bitácora, no aparece en el reporte.
+- **Qué se requiere:** `multipart/form-data` con un archivo Excel (.xlsx/.xls) de dos columnas: `A` = REQUEST JSON, `B` = tracking number. Se omiten las filas cuyo contenido en la columna A no sea un objeto JSON (encabezados o filas vacías).
+- **Qué se obtiene:** `200 OK` con un archivo `.xlsx` (descarga) con columnas: `Remisión`, `OfferId`, `Sku` y `Errores`. Ninguna fila de entrada se pierde: si algo falla se emite el registro con lo que sí se pudo extraer y el motivo en `Errores` — `JSON inválido: ...` (registro único con las tres primeras columnas vacías), `El REQUEST no trae offers` (registro único conservando la remisión), `Falta commercial_id` (se repite en todos los registros de esa fila), `Falta offer_id` y `Falta product-sap-sku-id`; los motivos que coinciden en un mismo registro van separados por comas. El contenido de cada celda se trunca al límite de Excel (32 767 caracteres).
+
+| Parámetro | Tipo | Obligatorio | Descripción |
+|---|---|---|---|
+| `file` | archivo (Excel) | Sí | Excel (.xlsx/.xls) de dos columnas: A=REQUEST JSON, B=tracking number. |
+
+---
+
+## Availability — `/api/v1/availability`
+Búsqueda masiva y asíncrona del stock de un SKU dentro de la orden a la que pertenece su remisión, identificada por `jobId`. Es solo lectura: encadena dos consultas GET por fila y no escribe en ningún sistema.
+
+Por cada fila el flujo es:
+1. `GET {ogcp}/order-service/v1/order/tracking-number/{remisión}` → `ctOrderId`.
+2. `GET {commercetools}/{projectKey}/orders/{ctOrderId}?expand=paymentInfo.payments[*]&expand=lineItems[*].supplyChannel` con `Authorization: Bearer`.
+3. Del `lineItem` cuyo `variant.sku` empata con el SKU de la columna A se toma `variant.availability.availableQuantity`.
+
+Las URLs, el `client-id`, el `project-key` y el ritmo viven en `application.properties` bajo el prefijo `availability.*`. El *secret* del API client **no** se guarda en configuración: se envía en cada petición.
+
+### POST `/available`
+- **Descripción:** Inicia la búsqueda asíncrona de availability a partir de un Excel de dos columnas (A: SKU, B: remisión). El `access_token` de commercetools se genera al momento con el `password` recibido y se usa durante toda la corrida; si las credenciales son incorrectas la petición falla de inmediato en lugar de encolar un job que muera solo. Se consulta una fila cada 100 ms; si una respuesta trae `500 Internal Server Error` o `504 Gateway Timeout` se pausa 5 s, la fila se difiere y se sigue avanzando con las demás; al terminar se reprocesan las diferidas hasta 3 rondas.
+- **Qué se requiere:** `multipart/form-data` con un archivo Excel (.xlsx/.xls) de dos columnas (`A` = SKU, `B` = remisión) y el `password` del API client de commercetools. Se omiten las filas cuya columna A no sea un SKU numérico (encabezados o filas vacías).
+- **Qué se obtiene:** `202 Accepted` con el `jobId` para consultar estatus y resultados.
+
+| Parámetro | Tipo | Obligatorio | Descripción |
+|---|---|---|---|
+| `file` | archivo (Excel) | Sí | Excel (.xlsx/.xls) de dos columnas: A=SKU, B=remisión. |
+| `password` | string | Sí | Secret del API client de commercetools con el que se genera el `access_token`. No se almacena ni se registra en bitácora. |
+
+### GET `/available/estatus/{jobId}`
+- **Descripción:** Consulta el estatus actual de la búsqueda: total de filas, procesadas, reprocesadas, con error de gateway y la remisión en curso.
+- **Qué se requiere:** `jobId` en la ruta.
+- **Qué se obtiene:** `200 OK` con el estatus del job (`EN_PROCESO`, `COMPLETADO` o `COMPLETADO_CON_ERRORES`).
+
+| Parámetro | Tipo | Obligatorio | Descripción |
+|---|---|---|---|
+| `jobId` | string (path) | Sí | Identificador del job de búsqueda. |
+
+### GET `/available/jobs`
+- **Descripción:** Lista todos los jobs de availability registrados desde el último arranque de la aplicación, del más reciente al más viejo. Sirve para recuperar un `jobId` que se perdió y para ver de un vistazo qué sigue corriendo. Los jobs viven en memoria: un reinicio de la aplicación vacía la lista.
+- **Qué se requiere:** Nada.
+- **Qué se obtiene:** `200 OK` con la lista de jobs, cada uno con `jobId`, `estatus`, `totalTrackings`, `procesados`, `conErrorGateway`, `reprocesados`, `trackingActual`, `inicio` y `fin`. Los que siguen corriendo traen `estatus: EN_PROCESO` y `fin: null`; los terminados, `COMPLETADO` o `COMPLETADO_CON_ERRORES` con su `fin`.
+
+| Parámetro | Tipo | Obligatorio | Descripción |
+|---|---|---|---|
+| — | — | — | Ninguno. |
+
+### GET `/available/excel/{jobId}`
+- **Descripción:** Descarga los resultados de la búsqueda.
+- **Qué se requiere:** `jobId` en la ruta.
+- **Qué se obtiene:** `200 OK` con un archivo `.xlsx` (descarga) de tres columnas: `SKU`, `Remisión` y `Stock`. `Stock` trae la cadena completa `"availableQuantity": 577,` cuando se encontró el dato; si algo falló trae `"error": "<mensaje>"` en esa misma celda (por ejemplo `"error": "SKU no encontrado en la orden"` cuando ningún `lineItem` de la orden empata con el SKU). El contenido de cada celda se trunca al límite de Excel (32 767 caracteres).
+
+| Parámetro | Tipo | Obligatorio | Descripción |
+|---|---|---|---|
+| `jobId` | string (path) | Sí | Identificador del job de búsqueda. |

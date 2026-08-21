@@ -13,13 +13,6 @@ import java.util.stream.Collectors;
 
 @RestControllerAdvice
 public class ControllerAdvice {
-    @ExceptionHandler(CorreoExisteException.class)
-    public ResponseEntity<?> handleCorreoExisteException(CorreoExisteException ex) {
-        return ResponseEntity
-                .badRequest()
-                .body(ex.getMessage());
-    }
-
     @ExceptionHandler(ColoniaNoEncontradaException.class)
     public ResponseEntity<?> handleColoniaNoEncontradaException(ColoniaNoEncontradaException ex) {
         return ResponseEntity
