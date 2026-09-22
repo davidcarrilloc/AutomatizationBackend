@@ -9,6 +9,7 @@ import java.util.List;
 @Data
 @NoArgsConstructor
 public class CobroResponse {
+    private String atgShippingGroupId;
     private Integer bcTransactionId;
     private Integer certificado;
     private String noPedido;

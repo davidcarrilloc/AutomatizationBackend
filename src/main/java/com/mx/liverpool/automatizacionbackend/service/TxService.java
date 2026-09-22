@@ -1,49 +1,57 @@
 package com.mx.liverpool.automatizacionbackend.service;
 
-import com.mx.liverpool.automatizacionbackend.exception.TxNotFound;
 import com.mx.liverpool.automatizacionbackend.model.CobroRow;
-import com.mx.liverpool.automatizacionbackend.model.TxPorMinuto;
 import com.mx.liverpool.automatizacionbackend.payload.response.CobroResponse;
 import com.mx.liverpool.automatizacionbackend.payload.response.ItemsResponse;
-import com.mx.liverpool.automatizacionbackend.repository.TxQA2Repository;
 import com.mx.liverpool.automatizacionbackend.repository.TxRepository;
 import lombok.extern.log4j.Log4j2;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
-import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
 
 @Service
 @Log4j2
 public class TxService {
     private final TxRepository txRepository;
-    private final TxQA2Repository txQA2Repository;
 
     @Autowired
-    public TxService(TxRepository txRepository, TxQA2Repository txQA2Repository) {
+    public TxService(TxRepository txRepository) {
         this.txRepository = txRepository;
-        this.txQA2Repository = txQA2Repository;
     }
 
-    public Object obtenerDiferenciaTxHoyvsAyer() {
-        return null;
+    public List<CobroResponse> obtenerDetalleTx(String atgOrderId, List<String> atgShippingGroupIds, String source) {
+        log.info("Entrando a obtenerDetalleTx con los valores {} {}", atgOrderId, atgShippingGroupIds);
+
+        Map<String, List<CobroRow>> cobroRowsPorSg = "QA2".equals(source)
+                ? Map.of()
+                : obtenerCobroBySource(atgOrderId, atgShippingGroupIds, "LIVERPOOL").stream()
+                        .collect(Collectors.groupingBy(CobroRow::getAtgShipGrpId));
+
+        List<CobroResponse> responses = new ArrayList<>();
+        for (String atgShippingGroupId : atgShippingGroupIds) {
+            CobroResponse cobroResponse;
+            if ("QA2".equals(source)) {
+                cobroResponse = crearRespuestaMockQA2();
+            } else if (cobroRowsPorSg.containsKey(atgShippingGroupId)) {
+                cobroResponse = armarCobroResponse(cobroRowsPorSg.get(atgShippingGroupId));
+            } else {
+                log.warn("No se encontraron registros para el shipping group id: {}", atgShippingGroupId);
+                cobroResponse = new CobroResponse();
+                cobroResponse.setEstadoTransaccion(false);
+                cobroResponse.setMensaje("No se encontraron registros para el shipping group id: " + atgShippingGroupId);
+            }
+            cobroResponse.setAtgShippingGroupId(atgShippingGroupId);
+            responses.add(cobroResponse);
+        }
+
+        return responses;
     }
 
-    public Object obtenerDetalleTx(String atgOrderId, String atgShippingGroupId, String source) {
-        log.info("Entrando a obtenerDetalleTx con los valores {} {}", atgOrderId, atgShippingGroupId);
-
-        if ("QA2".equals(source)) {
-            return crearRespuestaMockQA2();
-        }
-
-        List<CobroRow> cobroRowList = obtenerCobroBySource(atgOrderId, atgShippingGroupId, "LIV");
-        if (cobroRowList == null || cobroRowList.isEmpty()) {
-            log.warn("No se encontraron registros para el shipping group id: {}", atgShippingGroupId);
-            throw new TxNotFound("No se encontraron registros para el shipping group id: " + atgShippingGroupId);
-        }
-
+    private CobroResponse armarCobroResponse(List<CobroRow> cobroRowList) {
         boolean empleado = false;
         boolean descuentoDe1erDiaAplicado = false;
         double descuentoAplicado = 0.0;
@@ -149,25 +157,13 @@ public class TxService {
         return response;
     }
 
-    public List<CobroRow> obtenerCobroBySource(String atgOrderId, String atgShippingGroupId, String source) {
-        log.info("Entrando a obtenerCobroBySource con los valores {} {} {}", atgOrderId, atgShippingGroupId, source);
-        List<CobroRow> cobroRowList = null;
-        if ("LIV".equals(source)) {
-            cobroRowList = txRepository.obtenerCobroShippingGroup(atgOrderId, atgShippingGroupId);
+    public List<CobroRow> obtenerCobroBySource(String atgOrderId, List<String> atgShippingGroupIds, String source) {
+        log.info("Entrando a obtenerCobroBySource con los valores {} {} {}", atgOrderId, atgShippingGroupIds, source);
+        List<CobroRow> cobroRowList = List.of();
+        if ("LIVERPOOL".equals(source)) {
+            cobroRowList = txRepository.obtenerCobroShippingGroup(atgOrderId, atgShippingGroupIds);
         }
 
         return cobroRowList;
-    }
-
-    public List<TxPorMinuto> obtenerTransacciones() {
-        var result = txRepository.obtenerSegmentoActual();
-        var last = result.getFirst().getCurrentMin();
-        var first = last.minusMinutes(5);
-
-        return txRepository.obtenerTransacciones(first, last);
-    }
-
-    public List<TxPorMinuto> obtenerTransaccionesCache(LocalDateTime inicio, LocalDateTime fin) {
-        return txRepository.obtenerTransaccionesCache(inicio, fin);
     }
 }

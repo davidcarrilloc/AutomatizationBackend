@@ -2,6 +2,7 @@ package com.mx.liverpool.automatizacionbackend.controller;
 
 import com.mx.liverpool.automatizacionbackend.payload.request.DetalleTxRequest;
 import com.mx.liverpool.automatizacionbackend.service.TxService;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.log4j.Log4j2;
 import org.springframework.http.ResponseEntity;
@@ -16,10 +17,10 @@ public class TxController {
     private final TxService txService;
 
     @PostMapping("/detalleTx")
-    public ResponseEntity<?> detalleTx(@RequestBody DetalleTxRequest request) {
+    public ResponseEntity<?> detalleTx(@Valid @RequestBody DetalleTxRequest request) {
         log.info("Entrando a detalleTx");
         return ResponseEntity.ok(
-                txService.obtenerDetalleTx(request.getAtgOrderId(), request.getAtgShippingGroupId(), request.getSource())
+                txService.obtenerDetalleTx(request.getAtgOrderId(), request.getAtgShippingGroupIds(), request.getSource())
         );
     }
 }
