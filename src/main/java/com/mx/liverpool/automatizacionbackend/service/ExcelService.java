@@ -11,7 +11,7 @@ import com.mx.liverpool.automatizacionbackend.model.MarketplaceResult;
 import com.mx.liverpool.automatizacionbackend.model.MarketplaceRow;
 import com.mx.liverpool.automatizacionbackend.model.OmsFaltante;
 import com.mx.liverpool.automatizacionbackend.model.OrdenSoms;
-import com.mx.liverpool.automatizacionbackend.model.ReprocesoFacadeRow;
+import com.mx.liverpool.automatizacionbackend.model.ReprocesoItemIdRow;
 import com.mx.liverpool.automatizacionbackend.model.ReprocesoNodeRow;
 import com.mx.liverpool.automatizacionbackend.model.ReprocesoResult;
 import com.mx.liverpool.automatizacionbackend.model.StatusOmsResult;
@@ -200,9 +200,9 @@ public class ExcelService {
         }
     }
 
-    public List<ReprocesoFacadeRow> leerReprocesoFacade(MultipartFile file) {
-        log.info("Entrando a leerReprocesoFacade");
-        List<ReprocesoFacadeRow> filas = new ArrayList<>();
+    public List<ReprocesoItemIdRow> leerReprocesoItemId(MultipartFile file) {
+        log.info("Entrando a leerReprocesoItemId");
+        List<ReprocesoItemIdRow> filas = new ArrayList<>();
 
         try (InputStream is = file.getInputStream();
              Workbook workbook = new XSSFWorkbook(is)) {
@@ -211,7 +211,7 @@ public class ExcelService {
                 String json = leerCelda(row, 0);
                 // Se omiten encabezados o filas sin JSON: la columna A debe contener el objeto a enviar.
                 if (json.isEmpty() || !json.startsWith("{")) continue;
-                filas.add(ReprocesoFacadeRow.builder()
+                filas.add(ReprocesoItemIdRow.builder()
                         .json(json)
                         .remision(leerCelda(row, 1))
                         .itemId(leerCelda(row, 2))
@@ -221,7 +221,7 @@ public class ExcelService {
             throw new RuntimeException("Error al leer el Excel de reproceso: " + e.getMessage());
         }
 
-        log.info("Finalizando leerReprocesoFacade con {} filas", filas.size());
+        log.info("Finalizando leerReprocesoItemId con {} filas", filas.size());
         return filas;
     }
 
@@ -232,10 +232,18 @@ public class ExcelService {
 
             Sheet sheet = workbook.createSheet("Reproceso");
 
+            boolean hayCorreo = resultados.stream().anyMatch(r -> r.getCorreo() != null);
+            int maxSkus = resultados.stream().mapToInt(r -> r.getSkus() == null ? 0 : r.getSkus().size()).max().orElse(0);
+            int baseSkus = hayCorreo ? 4 : 3;
+
             Row header = sheet.createRow(0);
             header.createCell(0).setCellValue("Request Original");
             header.createCell(1).setCellValue("TrackingNumber");
             header.createCell(2).setCellValue("Response");
+            if (hayCorreo) header.createCell(3).setCellValue("Correo");
+            for (int i = 0; i < maxSkus; i++) {
+                header.createCell(baseSkus + i).setCellValue("SKU " + (i + 1));
+            }
 
             int rowNum = 1;
             for (ReprocesoResult resultado : resultados) {
@@ -243,10 +251,54 @@ public class ExcelService {
                 row.createCell(0).setCellValue(truncarCelda(resultado.getRequestOriginal()));
                 row.createCell(1).setCellValue(truncarCelda(resultado.getTrackingNumber()));
                 row.createCell(2).setCellValue(truncarCelda(resultado.getResponse()));
+                if (hayCorreo && resultado.getCorreo() != null) {
+                    row.createCell(3).setCellValue(truncarCelda(resultado.getCorreo()));
+                }
+                List<String> skus = resultado.getSkus() == null ? List.of() : resultado.getSkus();
+                for (int i = 0; i < skus.size(); i++) {
+                    row.createCell(baseSkus + i).setCellValue(truncarCelda(skus.get(i)));
+                }
             }
 
             workbook.write(out);
             log.info("Finalizando crearReporteReproceso");
+            return out.toByteArray();
+        }
+    }
+
+    // Escritor genérico para volcados de consulta: los encabezados salen de las llaves de la primera
+    // fila y el orden de columnas lo preserva el LinkedCaseInsensitiveMap que devuelve queryForList.
+    public byte[] crearReporteBc(List<Map<String, Object>> filas) throws IOException {
+        log.info("Entrando a crearReporteBc con {} filas", filas.size());
+        try (Workbook workbook = new XSSFWorkbook();
+             ByteArrayOutputStream out = new ByteArrayOutputStream()) {
+
+            Sheet sheet = workbook.createSheet("Result");
+
+            if (filas.isEmpty()) {
+                sheet.createRow(0).createCell(0).setCellValue("Sin resultados");
+                workbook.write(out);
+                log.info("Finalizando crearReporteBc sin resultados");
+                return out.toByteArray();
+            }
+
+            List<String> encabezados = new ArrayList<>(filas.getFirst().keySet());
+            Row header = sheet.createRow(0);
+            for (int i = 0; i < encabezados.size(); i++) {
+                header.createCell(i).setCellValue(encabezados.get(i));
+            }
+
+            int rowNum = 1;
+            for (Map<String, Object> fila : filas) {
+                Row row = sheet.createRow(rowNum++);
+                for (int i = 0; i < encabezados.size(); i++) {
+                    Object valor = fila.get(encabezados.get(i));
+                    row.createCell(i).setCellValue(valor == null ? "" : truncarCelda(String.valueOf(valor)));
+                }
+            }
+
+            workbook.write(out);
+            log.info("Finalizando crearReporteBc con {} filas", filas.size());
             return out.toByteArray();
         }
     }

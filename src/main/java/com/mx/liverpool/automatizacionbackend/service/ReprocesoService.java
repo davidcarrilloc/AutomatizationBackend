@@ -61,7 +61,7 @@ public class ReprocesoService {
         return resultados;
     }
 
-    private ReprocesoResult enviar(String requestOriginal, String trackingNumber) {
+    public ReprocesoResult enviar(String requestOriginal, String trackingNumber) {
         log.info("Enviando reproceso para tracking {}", trackingNumber);
         try {
             String response = webClient.post()

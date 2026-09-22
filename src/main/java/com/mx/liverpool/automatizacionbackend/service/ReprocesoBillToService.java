@@ -25,6 +25,8 @@ public class ReprocesoBillToService {
     private static final String NODO_ORIGEN = "PersonInfoShipTo";
     private static final String NODO_DESTINO = "PersonInfoBillTo";
     private static final String PREFIJO_EXTENSION = "LExtn";
+    private static final String PREFIJO_DEFAULT = "default ";
+    static final String MARCA_BILLTO = "BillTo";
     private static final String MARCA_ENVIADO = "Enviado";
     private static final String SIN_ORIGEN = "Falta el nodo " + NODO_ORIGEN + ", no hay de donde copiar";
 
@@ -86,34 +88,17 @@ public class ReprocesoBillToService {
 
         // ATG envía el pedido sin llave envolvente y la fachada sí la manda: se toleran ambas entradas.
         JsonNode orden = raiz.has("Order") ? raiz.get("Order") : raiz;
-        if (!(orden instanceof ObjectNode nodoOrden) || !(orden.get(NODO_ORIGEN) instanceof ObjectNode shipTo) || sinDatos(shipTo)) {
+        if (!(orden instanceof ObjectNode) || !(orden.get(NODO_ORIGEN) instanceof ObjectNode shipTo) || sinDatos(shipTo)) {
             log.info("Fila con tracking {} sin {}, se omite el envío", fila.getTrackingNumber(), NODO_ORIGEN);
             return ReprocesoService.Preparado.omitir(fila.getJson(), SIN_ORIGEN);
         }
 
-        ObjectNode billTo = orden.get(NODO_DESTINO) instanceof ObjectNode existente
-                ? existente
-                : nodoOrden.putObject(NODO_DESTINO);
-
-        // Solo se rellena lo que BillTo trae vacío; lo que ya tiene valor propio se respeta.
-        shipTo.properties().stream()
-                .filter(campo -> !campo.getKey().startsWith(PREFIJO_EXTENSION))
-                .filter(campo -> !estaVacio(campo.getValue()))
-                .filter(campo -> estaVacio(billTo.get(campo.getKey())))
-                .forEach(campo -> billTo.set(campo.getKey(), campo.getValue()));
-
-        List<String> faltantes = new ArrayList<>();
-        List<String> defaults = new ArrayList<>();
-        for (Int200Rules.Campo campo : obligatoriosBillTo) {
-            if (!estaVacio(billTo.get(campo.nombre()))) continue;
-            // Un obligatorio vacío con default en la definición no es un hueco: se rellena aquí.
-            if (campo.valorDefault() == null) {
-                faltantes.add(NODO_DESTINO + "." + campo.nombre());
-            } else {
-                billTo.put(campo.nombre(), campo.valorDefault());
-                defaults.add(campo.nombre() + "=\"" + campo.valorDefault() + "\"");
-            }
-        }
+        List<String> aplicadas = new ArrayList<>();
+        List<String> faltantes = completarBillTo(orden, aplicadas);
+        List<String> defaults = aplicadas.stream()
+                .filter(aplicada -> aplicada.startsWith(PREFIJO_DEFAULT))
+                .map(aplicada -> aplicada.substring(PREFIJO_DEFAULT.length()))
+                .toList();
 
         if (!faltantes.isEmpty()) {
             log.info("Fila con tracking {} incompleta, se omite el envío: {}", fila.getTrackingNumber(), faltantes);
@@ -130,11 +115,49 @@ public class ReprocesoBillToService {
         }
     }
 
-    private boolean sinDatos(ObjectNode nodo) {
+    /**
+     * Rellena PersonInfoBillTo con lo que PersonInfoShipTo trae y aplica los defaults del INT200.
+     * Anota en `aplicadas` lo que cambió ("BillTo" y cada default) y devuelve los obligatorios que
+     * quedaron vacíos, que es lo que impide enviar la orden. Sin ShipTo utilizable no copia nada,
+     * pero igual valida los obligatorios: un BillTo que ya venía completo no tiene por qué frenarse.
+     */
+    List<String> completarBillTo(JsonNode orden, List<String> aplicadas) {
+        if (!(orden instanceof ObjectNode nodoOrden)) return List.of(NODO_DESTINO);
+
+        ObjectNode billTo = orden.get(NODO_DESTINO) instanceof ObjectNode existente
+                ? existente
+                : nodoOrden.putObject(NODO_DESTINO);
+
+        // Solo se rellena lo que BillTo trae vacío; lo que ya tiene valor propio se respeta.
+        if (orden.get(NODO_ORIGEN) instanceof ObjectNode shipTo && !sinDatos(shipTo)) {
+            List<Map.Entry<String, JsonNode>> copiables = shipTo.properties().stream()
+                    .filter(campo -> !campo.getKey().startsWith(PREFIJO_EXTENSION))
+                    .filter(campo -> !estaVacio(campo.getValue()))
+                    .filter(campo -> estaVacio(billTo.get(campo.getKey())))
+                    .toList();
+            copiables.forEach(campo -> billTo.set(campo.getKey(), campo.getValue()));
+            if (!copiables.isEmpty()) aplicadas.add(MARCA_BILLTO);
+        }
+
+        List<String> faltantes = new ArrayList<>();
+        for (Int200Rules.Campo campo : obligatoriosBillTo) {
+            if (!estaVacio(billTo.get(campo.nombre()))) continue;
+            // Un obligatorio vacío con default en la definición no es un hueco: se rellena aquí.
+            if (campo.valorDefault() == null) {
+                faltantes.add(NODO_DESTINO + "." + campo.nombre());
+            } else {
+                billTo.put(campo.nombre(), campo.valorDefault());
+                aplicadas.add(PREFIJO_DEFAULT + campo.nombre() + "=\"" + campo.valorDefault() + "\"");
+            }
+        }
+        return faltantes;
+    }
+
+    static boolean sinDatos(ObjectNode nodo) {
         return nodo.properties().stream().allMatch(campo -> estaVacio(campo.getValue()));
     }
 
-    private boolean estaVacio(JsonNode valor) {
+    static boolean estaVacio(JsonNode valor) {
         return valor == null || valor.isNull() || valor.asText().isBlank();
     }
 }

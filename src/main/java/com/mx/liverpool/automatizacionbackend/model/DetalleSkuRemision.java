@@ -5,16 +5,16 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
-import java.util.List;
+import java.math.BigDecimal;
 
 @Data
 @NoArgsConstructor
 @Builder
 @AllArgsConstructor
-public class ReprocesoResult {
-    private String requestOriginal;
-    private String trackingNumber;
-    private String response;
-    private String correo;
-    private List<String> skus;
+public class DetalleSkuRemision {
+    private String remision;
+    private String skuId;
+    private String displayName;
+    private BigDecimal totalSku;
+    private String customerEmail;
 }

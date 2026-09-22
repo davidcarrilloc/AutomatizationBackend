@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Validación SL</title>
+<script src="vendor/htmx.min.js"></script>
+<script src="vendor/chart.umd.min.js"></script>
+<style>
+    :root {
+        --fondo: #f4f5f7;
+        --caja: #ffffff;
+        --borde: #e0e3e8;
+        --texto: #1f2430;
+        --suave: #6b7280;
+        --si: #e30613;
+        --no: #f59e0b;
+        --hist: #4b5563;
+    }
+    * { box-sizing: border-box; }
+    body {
+        margin: 0;
+        padding: 24px;
+        background: var(--fondo);
+        color: var(--texto);
+        font-family: "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+        font-size: 14px;
+    }
+    header { display: flex; align-items: baseline; justify-content: space-between; flex-wrap: wrap; gap: 12px; margin-bottom: 20px; }
+    h1 { font-size: 20px; margin: 0; }
+    h2 { font-size: 15px; margin: 0; }
+    .meta { color: var(--suave); display: flex; align-items: center; gap: 12px; }
+    button {
+        font: inherit; cursor: pointer; border: 1px solid var(--borde);
+        background: var(--caja); color: var(--texto); border-radius: 6px; padding: 6px 12px;
+    }
+    button:hover { background: #eef0f4; }
+    .caja { background: var(--caja); border: 1px solid var(--borde); border-radius: 8px; padding: 16px; }
+    .tarjetas { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px; margin-bottom: 16px; }
+    .tarjeta .rotulo { color: var(--suave); text-transform: uppercase; font-size: 11px; letter-spacing: .06em; }
+    .tarjeta .numero { font-size: 32px; font-weight: 600; margin-top: 4px; }
+    .tarjeta.existen .numero { color: var(--si); }
+    .tarjeta.noexisten .numero { color: var(--no); }
+    .tarjeta.historico .numero { color: var(--hist); }
+    .graficas { display: grid; grid-template-columns: minmax(260px, 1fr) minmax(320px, 2fr); gap: 16px; margin-bottom: 16px; }
+    .graficas .caja { height: 280px; }
+    .buscador { margin-bottom: 16px; display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+    .buscador input { font: inherit; padding: 8px 12px; border: 1px solid var(--borde); border-radius: 6px; width: 280px; }
+    .si { color: var(--si); font-weight: 600; }
+    .no { color: var(--suave); }
+    .tablas { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 16px; }
+    .cabeza { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
+    .cabeza a { color: var(--suave); font-size: 12px; }
+    .scroll { max-height: 420px; overflow-y: auto; }
+    table { width: 100%; border-collapse: collapse; font-variant-numeric: tabular-nums; }
+    th, td { text-align: left; padding: 5px 8px; border-bottom: 1px solid var(--borde); }
+    th { position: sticky; top: 0; background: var(--caja); color: var(--suave); font-size: 11px; text-transform: uppercase; letter-spacing: .06em; }
+    td:first-child { color: var(--suave); width: 60px; }
+    .vacio { color: var(--suave); }
+    .mas { width: 100%; margin: 6px 0; }
+    @media (max-width: 800px) { .graficas { grid-template-columns: 1fr; } }
+</style>
+</head>
+<body>
+
+<header>
+    <h1>Validación SL</h1>
+    <div class="meta">
+        <span id="fecha">Sin datos descargados</span>
+        <button id="refrescar">Refrescar desde el SFTP</button>
+    </div>
+</header>
+
+<section class="tarjetas">
+    <div class="caja tarjeta existen"><div class="rotulo">Existen</div><div class="numero" id="n-existen">—</div></div>
+    <div class="caja tarjeta noexisten"><div class="rotulo">No existen</div><div class="numero" id="n-noexisten">—</div></div>
+    <div class="caja tarjeta historico"><div class="rotulo">Histórico</div><div class="numero" id="n-historico">—</div></div>
+</section>
+
+<section class="graficas">
+    <div class="caja"><canvas id="dona"></canvas></div>
+    <div class="caja"><canvas id="linea"></canvas></div>
+</section>
+
+<section class="buscador">
+    <input type="search" name="remision" placeholder="Buscar remisión…"
+           hx-get="api/v1/validacion-sl/buscar"
+           hx-trigger="keyup changed delay:400ms, search"
+           hx-target="#resultado-busqueda">
+    <span id="resultado-busqueda"></span>
+</section>
+
+<section class="tablas">
+    <div class="caja">
+        <div class="cabeza"><h2>Existen</h2><a href="api/v1/validacion-sl/descargar?archivo=existen">Descargar CSV</a></div>
+        <div class="scroll"><table>
+            <thead><tr><th>#</th><th>Remisión</th></tr></thead>
+            <tbody hx-get="api/v1/validacion-sl/filas?archivo=existen&amp;desde=0" hx-trigger="load"></tbody>
+        </table></div>
+    </div>
+    <div class="caja">
+        <div class="cabeza"><h2>No existen</h2><a href="api/v1/validacion-sl/descargar?archivo=noexisten">Descargar CSV</a></div>
+        <div class="scroll"><table>
+            <thead><tr><th>#</th><th>Remisión</th></tr></thead>
+            <tbody hx-get="api/v1/validacion-sl/filas?archivo=noexisten&amp;desde=0" hx-trigger="load"></tbody>
+        </table></div>
+    </div>
+    <div class="caja">
+        <div class="cabeza"><h2>Histórico</h2><a href="api/v1/validacion-sl/descargar?archivo=historico">Descargar CSV</a></div>
+        <div class="scroll"><table>
+            <thead><tr><th>#</th><th>Remisión</th></tr></thead>
+            <tbody hx-get="api/v1/validacion-sl/filas?archivo=historico&amp;desde=0" hx-trigger="load"></tbody>
+        </table></div>
+    </div>
+</section>
+
+<script>
+    const numero = valor => (valor ?? 0).toLocaleString("es-MX");
+
+    async function cargarResumen() {
+        const respuesta = await fetch("api/v1/validacion-sl/resumen");
+        if (!respuesta.ok) return;
+        const datos = await respuesta.json();
+
+        document.getElementById("n-existen").textContent = numero(datos.conteos.existen);
+        document.getElementById("n-noexisten").textContent = numero(datos.conteos.noexisten);
+        document.getElementById("n-historico").textContent = numero(datos.conteos.historico);
+        document.getElementById("fecha").textContent = datos.fecha
+            ? "Última descarga: " + datos.fecha.replace("T", " ").substring(0, 16)
+            : "Sin datos descargados";
+
+        new Chart(document.getElementById("dona"), {
+            type: "doughnut",
+            data: {
+                labels: ["Existen", "No existen"],
+                datasets: [{ data: [datos.conteos.existen, datos.conteos.noexisten], backgroundColor: ["#e30613", "#f59e0b"] }]
+            },
+            options: { responsive: true, maintainAspectRatio: false, plugins: { title: { display: true, text: "Envío del día" } } }
+        });
+
+        new Chart(document.getElementById("linea"), {
+            type: "line",
+            data: {
+                labels: datos.serie.map(dia => dia.fecha),
+                datasets: [
+                    { label: "Existen", data: datos.serie.map(dia => dia.existen), borderColor: "#e30613", tension: .3 },
+                    { label: "No existen", data: datos.serie.map(dia => dia.noExisten), borderColor: "#f59e0b", tension: .3 }
+                ]
+            },
+            options: {
+                responsive: true, maintainAspectRatio: false,
+                plugins: { title: { display: true, text: "Últimos 30 días" } },
+                scales: { y: { beginAtZero: true } }
+            }
+        });
+    }
+
+    document.getElementById("refrescar").addEventListener("click", async evento => {
+        const boton = evento.target;
+        boton.disabled = true;
+        boton.textContent = "Descargando…";
+        const respuesta = await fetch("api/v1/validacion-sl/refrescar", { method: "POST" });
+        if (respuesta.ok) {
+            location.reload();
+            return;
+        }
+        boton.disabled = false;
+        boton.textContent = "Refrescar desde el SFTP";
+        document.getElementById("fecha").textContent = (await respuesta.text()) || "No se pudo leer el SFTP";
+    });
+
+    cargarResumen();
+</script>
+
+</body>
+</html>

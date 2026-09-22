@@ -5,16 +5,13 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
-import java.util.List;
-
 @Data
 @NoArgsConstructor
 @Builder
 @AllArgsConstructor
-public class ReprocesoResult {
-    private String requestOriginal;
-    private String trackingNumber;
-    private String response;
-    private String correo;
-    private List<String> skus;
+public class ConteoValidacionSl {
+    private String fecha;
+    private Integer existen;
+    private Integer noExisten;
+    private Integer historico;
 }
