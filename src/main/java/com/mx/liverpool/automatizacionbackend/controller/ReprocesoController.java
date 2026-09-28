@@ -4,6 +4,7 @@ import com.mx.liverpool.automatizacionbackend.service.ExcelService;
 import com.mx.liverpool.automatizacionbackend.service.ReprocesoBillToService;
 import com.mx.liverpool.automatizacionbackend.service.ReprocesoCombinadoService;
 import com.mx.liverpool.automatizacionbackend.service.ReprocesoCompletoService;
+import com.mx.liverpool.automatizacionbackend.service.ReprocesoConditionVariable2Service;
 import com.mx.liverpool.automatizacionbackend.service.ReprocesoEmailService;
 import com.mx.liverpool.automatizacionbackend.service.ReprocesoF001Service;
 import com.mx.liverpool.automatizacionbackend.service.ReprocesoFirstNameService;
@@ -38,6 +39,7 @@ public class ReprocesoController {
     private final ReprocesoEmailService reprocesoEmailService;
     private final ReprocesoFirstNameService reprocesoFirstNameService;
     private final ReprocesoCompletoService reprocesoCompletoService;
+    private final ReprocesoConditionVariable2Service reprocesoConditionVariable2Service;
     private final ExcelService excelService;
 
     @Operation(summary = "Reprocesar órdenes reemplazando el ItemID contra I200",
@@ -251,7 +253,7 @@ public class ReprocesoController {
 
     @Operation(summary = "Reprocesar órdenes aplicando todas las correcciones contra I200",
             description = "El reproceso completo: recibe un Excel de dos columnas (A: JSON del pedido, B: remisión) y por " +
-                    "cada fila aplica, en este orden, las cuatro correcciones que los demás endpoints hacen por separado, " +
+                    "cada fila aplica, en este orden, las cinco correcciones que los demás endpoints hacen por separado, " +
                     "quedándose solo con las que la orden necesita. 1) Store y ShipNode \"F001\" pasan a \"001\". " +
                     "2) ItemID, ItemDesc, UnitPrice y ListPrice se toman del detalle de SKU de la remisión en BRIDGECORE, " +
                     "asignados por posición y solo donde el pedido viene vacío (un precio en cero cuenta como vacío). " +
@@ -259,9 +261,10 @@ public class ReprocesoController {
                     "por posición (primera palabra al FirstName, última al LastName, lo de en medio al MiddleName). " +
                     "4) PersonInfoBillTo se rellena con lo que trae PersonInfoShipTo más los valores por default del " +
                     "INT200. El BillTo va al final para que herede el correo y el nombre que el paso 3 escribió en el " +
-                    "ShipTo. En todos los pasos se respeta el dato propio del pedido: solo se llena lo vacío, nulo o con " +
+                    "ShipTo. 5) ConditionVariable2 de cada OrderLine vacío o ausente se llena con \"PICK\" si " +
+                    "IS_CLICK_AND_COLLCT = Y o \"SHP\" si = N (la llave se crea). En todos los pasos se respeta el dato propio del pedido: solo se llena lo vacío, nulo o con " +
                     "espacios, y una llave que no exista no se crea. Solo frenan el envío los campos que el INT200 exige " +
-                    "(EMailID, FirstName, LastName y los obligatorios del BillTo); si BRIDGECORE no trae detalle de SKU o " +
+                    "(EMailID, FirstName, LastName, ConditionVariable2 y los obligatorios del BillTo); si BRIDGECORE no trae detalle de SKU o " +
                     "no cuadra con los OrderLines, ese paso se salta, se anota y la orden se envía igual. Una orden que no " +
                     "necesita nada también se envía, marcada \"sin cambios\". Las llamadas al I200 van espaciadas (250 ms " +
                     "entre envíos y 1 s cada 25) y la remisión se consulta tal como viene en la columna B. Devuelve un " +
@@ -283,6 +286,35 @@ public class ReprocesoController {
                 .body(
                         excelService.crearReporteReproceso(
                                 reprocesoCompletoService.reprocesar(
+                                        excelService.leerReprocesoNode(file)
+                                )
+                        )
+                );
+    }
+
+    @Operation(summary = "Reprocesar órdenes llenando ConditionVariable2 (PICK/SHP) contra I200",
+            description = "Recibe un Excel de dos columnas (A: JSON del pedido, B: remisión). Por cada remisión consulta " +
+                    "TX_INFORMACION_PROCESADA.IS_CLICK_AND_COLLCT en BRIDGECORE: Y = click & collect → \"PICK\", " +
+                    "N = no click & collect → \"SHP\". Ese valor se pone en OrderLines[].OrderLine.ConditionVariable2 solo " +
+                    "donde viene vacío o no existe (la llave se crea); un valor propio del pedido se respeta. Una orden " +
+                    "que ya trae todas sus líneas llenas se envía tal cual. No se envía si la remisión no existe en " +
+                    "BRIDGECORE (\"Sin datos en BRIDGECORE\") o si hay líneas vacías y el flag no es Y/N (\"Sin datos en " +
+                    "BRIDGECORE para: ConditionVariable2\"). Devuelve un .xlsx (descarga) con columnas: Request Original, " +
+                    "TrackingNumber y Response.")
+    @ApiResponse(responseCode = "200", description = "Archivo .xlsx (descarga) con el resultado del reproceso")
+    @PostMapping(value = "/conditionvariable2/procesar", consumes = {"multipart/form-data"})
+    public ResponseEntity<?> procesarConditionVariable2(
+            @Parameter(description = "Archivo Excel (.xlsx/.xls) de dos columnas: A=JSON, B=remisión") @RequestParam("file") MultipartFile file) throws IOException {
+        if (excelService.esArchivoNoExcel(file.getOriginalFilename())) throw new IllegalArgumentException("Tipo de archivo inválido. Solo se permiten archivos Excel.");
+
+        HttpHeaders headers = new HttpHeaders();
+        headers.add(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=Reporte_Reproceso_ConditionVariable2.xlsx");
+        return ResponseEntity.ok()
+                .headers(headers)
+                .contentType(MediaType.parseMediaType("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"))
+                .body(
+                        excelService.crearReporteReproceso(
+                                reprocesoConditionVariable2Service.reprocesar(
                                         excelService.leerReprocesoNode(file)
                                 )
                         )

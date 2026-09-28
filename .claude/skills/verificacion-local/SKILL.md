@@ -119,5 +119,5 @@ Un caso por rama, no uno por método. Lo que sí vale la pena:
 
 Lo que se probó así **es** verificación y va en el Cierre del SPEC. Lo que quedó pendiente también:
 la prueba de extremo a extremo por Swagger se reporta como pendiente con su razón (los datasources),
-igual que en `SPEC_VALIDATOR.md`, `SPEC_AVAILABILITY.md` y `SPEC_VALIDADOR_MARKETPLACE.md`. Nunca la
+igual que en la lista de pendientes E2E de `docs/Hallazgos_Tecnicos.md`. Nunca la
 des por hecha.

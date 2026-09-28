@@ -18,17 +18,31 @@ import java.util.Map;
 public class ExtractoBcRepository {
     private final NamedParameterJdbcTemplate jdbcTemplate;
     private final String consultaLiverpoolSl;
+    private final String consultaLiverpoolBt;
+    private final String consultaSuburbia;
 
     @Autowired
     public ExtractoBcRepository(
             @Qualifier("bridgeCoreDataSource") DataSource bridgeCoreDataSource,
-            @Value("${consulta.extracto-bc-lp-sl}") String consultaLiverpoolSl) {
+            @Value("${consulta.extracto-bc-lp-sl}") String consultaLiverpoolSl,
+            @Value("${consulta.extracto-bc-lp-bt}") String consultaLiverpoolBt,
+            @Value("${consulta.extracto-bc-sbb}") String consultaSuburbia) {
         this.jdbcTemplate = new NamedParameterJdbcTemplate(bridgeCoreDataSource);
         this.consultaLiverpoolSl = consultaLiverpoolSl;
+        this.consultaLiverpoolBt = consultaLiverpoolBt;
+        this.consultaSuburbia = consultaSuburbia;
     }
 
     public List<String> obtenerRemisionesLiverpoolSl(LocalDateTime inicio, LocalDateTime fin) {
         return jdbcTemplate.queryForList(consultaLiverpoolSl, construirParametros(inicio, fin), String.class);
+    }
+
+    public List<String> obtenerOrdenesVentaLiverpoolBt(LocalDateTime inicio, LocalDateTime fin) {
+        return jdbcTemplate.queryForList(consultaLiverpoolBt, construirParametros(inicio, fin), String.class);
+    }
+
+    public List<String> obtenerShipGroupsSuburbia(LocalDateTime inicio, LocalDateTime fin) {
+        return jdbcTemplate.queryForList(consultaSuburbia, construirParametros(inicio, fin), String.class);
     }
 
     private Map<String, Object> construirParametros(LocalDateTime inicio, LocalDateTime fin) {

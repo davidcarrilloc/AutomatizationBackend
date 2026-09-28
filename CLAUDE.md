@@ -329,6 +329,9 @@ Usar anotaciones de `io.swagger.v3.oas.annotations.*` (ya disponible vía `sprin
 
 ### Markdown
 
-Actualizar `docs/Documentacion_Endpoints.md`: una subsección por endpoint con los **4 puntos fijos**: **Descripción**, **Qué se requiere**, **Qué se obtiene** y **Parámetros** (tabla nombre/tipo/obligatorio/descripción).
+Los `.md` de `docs/` son para consumo de IA: densos, sin prosa, sin tablas decorativas.
+
+- `docs/Documentacion_Endpoints.md` — una subsección `### MÉTODO /ruta/completa` por endpoint con las claves `desc`, `req`, `res`, `params` (`nombre:tipo:req|opt[=default] — nota`) y opcional `impl`. Seguir el formato del comentario al inicio del archivo.
+- `docs/Hallazgos_Tecnicos.md` — trampas y decisiones no deducibles del código, formato `- [tema] hecho → regla`. Al aplicar un SPEC, su Cierre se vuelca aquí y el `SPEC_*.md` se borra.
 
 Textos de documentación en español; sin comentarios decorativos.

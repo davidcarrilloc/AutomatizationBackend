@@ -9,9 +9,11 @@ import java.nio.charset.StandardCharsets;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.time.temporal.ChronoUnit;
-import java.util.LinkedHashMap;
+import java.util.ArrayList;
 import java.util.List;
+import java.util.LinkedHashMap;
 import java.util.Map;
+import java.util.function.Supplier;
 
 @Service
 @RequiredArgsConstructor
@@ -22,6 +24,8 @@ public class ExtractoBcService {
 
     private final ExtractoBcRepository extractoBcRepository;
     private final SftpService sftpService;
+
+    private record Fuente(boolean ok, List<String> filas) {}
 
     public Map<String, Object> generarDiaAnterior() {
         LocalDateTime inicio = inicioDiaAnterior(LocalDateTime.now());
@@ -34,20 +38,46 @@ public class ExtractoBcService {
 
     public Map<String, Object> generarYEnviar(LocalDateTime inicio, LocalDateTime fin) {
         log.info("Entrando a generarYEnviar con la ventana {} - {}", inicio, fin);
-        String nombreArchivo = "liverpool_sl_" + FORMATO_NOMBRE.format(inicio) + ".csv";
+        String sello = FORMATO_NOMBRE.format(inicio);
 
         Map<String, Object> resumen = new LinkedHashMap<>();
-        try {
-            List<String> remisiones = extractoBcRepository.obtenerRemisionesLiverpoolSl(inicio, fin);
-            sftpService.enviarArchivo(nombreArchivo, construirCsv(remisiones));
-            resumen.put(nombreArchivo, remisiones.size());
-        } catch (Exception e) {
-            log.error("Error en el extracto {}: {}", nombreArchivo, e.getMessage(), e);
-            resumen.put(nombreArchivo, "Error: " + e.getMessage());
-        }
+
+        Fuente sl = consultar("liverpool_sl", () -> extractoBcRepository.obtenerRemisionesLiverpoolSl(inicio, fin));
+        Fuente sbb = consultar("suburbia", () -> extractoBcRepository.obtenerShipGroupsSuburbia(inicio, fin));
+        subir("oms_sl_" + sello + ".csv", List.of(sl, sbb), resumen);
+
+        Fuente bt = consultar("liverpool_bt", () -> extractoBcRepository.obtenerOrdenesVentaLiverpoolBt(inicio, fin));
+        subir("oms_bt_" + sello + ".csv", List.of(bt), resumen);
 
         log.info("Finalizando generarYEnviar: {}", resumen);
         return resumen;
+    }
+
+    private Fuente consultar(String clave, Supplier<List<String>> consulta) {
+        try {
+            List<String> filas = consulta.get();
+            log.info("Consulta {}: {} filas", clave, filas.size());
+            return new Fuente(true, filas);
+        } catch (Exception e) {
+            log.error("Error en la consulta {}: {}", clave, e.getMessage(), e);
+            return new Fuente(false, List.of());
+        }
+    }
+
+    private void subir(String nombreArchivo, List<Fuente> fuentes, Map<String, Object> resumen) {
+        if (fuentes.stream().noneMatch(Fuente::ok)) {
+            resumen.put(nombreArchivo, "Omitido: todas las fuentes fallaron");
+            return;
+        }
+        List<String> valores = new ArrayList<>();
+        fuentes.forEach(fuente -> valores.addAll(fuente.filas()));
+        try {
+            sftpService.enviarArchivo(nombreArchivo, construirCsv(valores));
+            resumen.put(nombreArchivo, valores.size());
+        } catch (Exception e) {
+            log.error("Error al subir {}: {}", nombreArchivo, e.getMessage(), e);
+            resumen.put(nombreArchivo, "Error: " + e.getMessage());
+        }
     }
 
     protected byte[] construirCsv(List<String> valores) {

@@ -12,4 +12,5 @@ import lombok.NoArgsConstructor;
 public class ClienteRemision {
     private String customerEmail;
     private String nombreUsuario;
+    private String isClickAndCollct;
 }

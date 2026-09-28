@@ -108,5 +108,5 @@ después y deja al usuario consultando un estatus que nunca avanza.
 ## Documentación
 
 Los cuatro endpoints llevan `@Operation` / `@ApiResponse` / `@Parameter` y su subsección en
-`docs/Documentacion_Endpoints.md` con los 4 puntos fijos, **en el mismo cambio** (CLAUDE.md
-§Documentación). Para `/jobs`, que no recibe parámetros, la tabla se deja con una fila `Ninguno`.
+`docs/Documentacion_Endpoints.md` con las claves `desc/req/res/params`, **en el mismo cambio** (CLAUDE.md
+§Documentación). Para `/jobs`, que no recibe parámetros, `params: —`.

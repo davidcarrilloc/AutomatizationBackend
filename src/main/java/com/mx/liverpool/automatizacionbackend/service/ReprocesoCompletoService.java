@@ -26,6 +26,7 @@ public class ReprocesoCompletoService {
     private static final String MARCA_F001 = "F001";
     private static final String MARCA_ITEM = "Item";
     private static final String MARCA_CORREO = "Correo";
+    private static final String MARCA_CONDITION = "ConditionVariable2";
     private static final String SIN_CAMBIOS = "sin cambios";
     private static final String NODO_ORDER_LINES = "OrderLines";
 
@@ -124,15 +125,23 @@ public class ReprocesoCompletoService {
 
         // 3. Correo y nombre. Va antes que el BillTo para que el merge herede lo que se escribió en
         // el ShipTo en vez de reclamarlo vacío.
-        ClienteRemision cliente = clientePorRemision.getOrDefault(remision, new ClienteRemision(null, null));
+        ClienteRemision cliente = clientePorRemision.getOrDefault(remision, new ClienteRemision(null, null, null));
         String antesDelCliente = orden.toString();
-        List<String> faltantesCliente = ReprocesoItemIdAutoService
+        List<String> faltantesCliente = new ArrayList<>(ReprocesoItemIdAutoService
                 .rellenarCampos(orden, ReprocesoFirstNameService.valores(cliente))
-                .stream().distinct().sorted().toList();
+                .stream().distinct().sorted().toList());
         if (!orden.toString().equals(antesDelCliente)) aplicadas.add(MARCA_CORREO);
 
         // 4. BillTo desde ShipTo + defaults del INT200.
         List<String> faltantesBillTo = reprocesoBillToService.completarBillTo(orden, aplicadas);
+
+        // 5. ConditionVariable2 PICK/SHP según is_click_and_collct.
+        String antesDeCondition = orden.path(NODO_ORDER_LINES).toString();
+        if (!ReprocesoConditionVariable2Service.rellenar(orden,
+                ReprocesoConditionVariable2Service.valor(cliente.getIsClickAndCollct()))) {
+            faltantesCliente.add(MARCA_CONDITION);
+        }
+        if (!orden.path(NODO_ORDER_LINES).toString().equals(antesDeCondition)) aplicadas.add(MARCA_CONDITION);
 
         // El veto mira el resultado, no la fuente: solo frena lo que el INT200 exige y quedó vacío.
         List<String> motivos = new ArrayList<>();
