@@ -37,6 +37,25 @@ class TxServiceTest {
     }
 
     @Test
+    void regresaRemisionSiExisteSiNoOrdenVenta() {
+        TxRepository repo = mock(TxRepository.class);
+        List<String> sgs = List.of("sg1", "sg2");
+        CobroRow conRemision = row("sg1", 1L);
+        conRemision.setRemision("123");
+        conRemision.setOrdenVenta("9849482237");
+        CobroRow sinRemision = row("sg2", 2L);
+        sinRemision.setOrdenVenta("9849482238");
+        when(repo.obtenerCobroShippingGroup("o1", sgs)).thenReturn(List.of(conRemision, sinRemision));
+
+        List<CobroResponse> res = new TxService(repo).obtenerDetalleTx("o1", sgs, "LIVERPOOL");
+
+        assertEquals(123L, res.get(0).getNumeroRemision());
+        assertNull(res.get(0).getOrdenVenta());
+        assertNull(res.get(1).getNumeroRemision());
+        assertEquals(9849482238L, res.get(1).getOrdenVenta());
+    }
+
+    @Test
     void qa2DevuelveMockPorCadaShippingGroup() {
         List<CobroResponse> res = new TxService(mock(TxRepository.class)).obtenerDetalleTx("o1", List.of("a", "b"), "QA2");
 

@@ -68,7 +68,13 @@ public class TxService {
 
         CobroResponse cobroResponse = new CobroResponse();
         cobroResponse.setMontoCobroMed(cobroRowList.getFirst().getCargoMed() != null ? cobroRowList.getFirst().getCargoMed() : 0.0);
-        cobroResponse.setNumeroRemision(cobroRowList.getFirst().getRemision() != null ? Long.valueOf(cobroRowList.getFirst().getRemision()) : null);
+        String remision = cobroRowList.getFirst().getRemision();
+        if (remision != null && !remision.isBlank()) {
+            cobroResponse.setNumeroRemision(Long.valueOf(remision.trim()));
+        } else {
+            String ordenVenta = cobroRowList.getFirst().getOrdenVenta();
+            cobroResponse.setOrdenVenta(ordenVenta != null && !ordenVenta.isBlank() ? Long.valueOf(ordenVenta.trim()) : null);
+        }
         cobroResponse.setBcTransactionId(cobroRowList.getFirst().getId());
         cobroResponse.setNumeroSkus(cobroRowList.getFirst().getTotalSkus());
         cobroResponse.setMontoAbonoMed(cobroRowList.getFirst().getAbonoMed() != null ? cobroRowList.getFirst().getAbonoMed() : 0.0);

@@ -14,7 +14,7 @@ public class CobroResponse {
     private Integer certificado;
     private String noPedido;
     private Long numeroRemision;
-    // private Long ordenVenta;
+    private Long ordenVenta;
     private String recognitionStore;
     private Double montoTotal;
     private Boolean estadoTransaccion;
