@@ -72,6 +72,7 @@ Formato: `- [tema] hecho → consecuencia/regla`. Transversales primero, luego p
 - [marca Enviado] se agrega después del envío: `ReprocesoService` es genérico; resultados se zipean con filas por índice.
 - [duplicación] merge BillTo (~40 líneas) duplicado en ReprocesoBillToService y ReprocesoCombinadoService: cambio de regla ⇒ editar ambos. `ReprocesoBillToService.estaVacio` es `static` para reuso.
 - [rules loader] ValidadorService, ReprocesoBillToService, ReprocesoCombinadoService cargan `int200-rules.json` cada uno (6 líneas). Candidato a `@Bean Int200Rules`.
+- [ExtnGREventType] INT200 (hoja `Input Message` r1349) declara 40 pero `YFS_ORDER_HEADER.EXTN_GR_EVENT_TYPE` acepta 24 ⇒ OMS responde `EXTN_GR_EVENT_TYPE max 24 chars` → recortar a 24; en completo nunca frena. Cuenta caracteres: si reaparece con acentos, la columna es `24 BYTE` y hay que recortar por bytes UTF-8.
 - [combinado] envía filas sin F001 ⇒ archivo de 200 filas manda 200 (minutos por ritmo). Para filtrar usar `/f001`. Para archivos grandes usar `/completo/async`.
 
 ### Reproceso ItemID auto (ReprocesoItemIdAutoService)

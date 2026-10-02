@@ -265,16 +265,24 @@ res: 200 `Reporte_Reproceso_ConditionVariable2.xlsx`; Response ∈ {`<resp I200>
 params: file:Excel:req
 impl: ReprocesoConditionVariable2Service
 
+### POST /api/v1/reproceso/greventtype/procesar
+desc: corrige el error OMS `EXTN_GR_EVENT_TYPE max 24 chars`. Toda llave `ExtnGREventType` (Order.Extn, Mesa de Regalos) con >24 car. → primeros 24 sin espacios sobrantes, a cualquier profundidad, y envía. Sin la llave o ≤24 → no envía, `No ExtnGREventType > 24`. Sin BRIDGECORE. Tolera JSON con o sin llave `Order`.
+req: Excel A=JSON, B=TrackingNumber.
+res: 200 `Reporte_Reproceso_GrEventType.xlsx`; Response ∈ {`<resp I200>`, `No ExtnGREventType > 24`, `"error": "…"`}.
+params: file:Excel:req
+impl: ReprocesoGrEventTypeService.recortar
+
 ### POST /api/v1/reproceso/completo/procesar
-desc: 5 correcciones en orden, 2 consultas BC por remisión distinta (detalle SKU + cliente). Solo llena vacíos (precio 0 cuenta como vacío); NO pisa ItemID/precio propios (≠ itemid-auto).
+desc: 6 correcciones en orden, 2 consultas BC por remisión distinta (detalle SKU + cliente). Solo llena vacíos (precio 0 cuenta como vacío); NO pisa ItemID/precio propios (≠ itemid-auto).
   1. Store/ShipNode F001→001 — nunca frena.
   2. ItemID/ItemDesc/UnitPrice/ListPrice por posición si #SKUs==#OrderLines — si no, se salta con motivo y se envía igual.
   3. EMailID/FirstName/MiddleName/LastName desde TX_CLIENTE — frena si queda vacío EMailID|FirstName|LastName.
   4. BillTo ← ShipTo + defaults INT200 — frena si falta obligatorio sin default. Va al final para heredar paso 3.
   5. OrderLine.ConditionVariable2 vacío/ausente ← PICK (IS_CLICK_AND_COLLCT=Y) | SHP (=N); crea la llave — frena si queda vacío (flag ≠ Y/N o remisión sin BC) y se suma a `Sin datos en BRIDGECORE para: …`.
+  6. ExtnGREventType >24 car. → primeros 24 (`ReprocesoGrEventTypeService.recortar`) — nunca frena.
   Sin ShipTo pero BillTo completo → SÍ envía (≠ `/billto`). Log: `BRIDGECORE devolvió N SKUs y M clientes para la remisión X`.
 req: Excel A=JSON, B=remisión (tal cual).
-res: 200 `Reporte_Reproceso_Completo.xlsx`; Response ∈ {`Enviado (F001, Item, Correo, BillTo, ConditionVariable2) | <resp>`, `Enviado (sin cambios) | <resp>`, `Enviado (F001, Correo, BillTo | sin Item: BC trae 3 SKUs y el JSON 2 OrderLines) | <resp>`, `Enviado (..., default Country="MX") | <resp>`, `No enviado. Sin datos en BRIDGECORE para: EMailID, LastName`, `No enviado. Falta: PersonInfoBillTo.State`, `"error": "…"`}.
+res: 200 `Reporte_Reproceso_Completo.xlsx`; Response ∈ {`Enviado (F001, Item, Correo, BillTo, ConditionVariable2, GREventType) | <resp>`, `Enviado (sin cambios) | <resp>`, `Enviado (F001, Correo, BillTo | sin Item: BC trae 3 SKUs y el JSON 2 OrderLines) | <resp>`, `Enviado (..., default Country="MX") | <resp>`, `No enviado. Sin datos en BRIDGECORE para: EMailID, LastName`, `No enviado. Falta: PersonInfoBillTo.State`, `"error": "…"`}.
 params: file:Excel:req
 impl: ReprocesoCompletoService
 

@@ -8,6 +8,7 @@ import com.mx.liverpool.automatizacionbackend.service.ReprocesoConditionVariable
 import com.mx.liverpool.automatizacionbackend.service.ReprocesoEmailService;
 import com.mx.liverpool.automatizacionbackend.service.ReprocesoF001Service;
 import com.mx.liverpool.automatizacionbackend.service.ReprocesoFirstNameService;
+import com.mx.liverpool.automatizacionbackend.service.ReprocesoGrEventTypeService;
 import com.mx.liverpool.automatizacionbackend.service.ReprocesoItemIdAutoService;
 import com.mx.liverpool.automatizacionbackend.service.ReprocesoItemIdService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -40,6 +41,7 @@ public class ReprocesoController {
     private final ReprocesoFirstNameService reprocesoFirstNameService;
     private final ReprocesoCompletoService reprocesoCompletoService;
     private final ReprocesoConditionVariable2Service reprocesoConditionVariable2Service;
+    private final ReprocesoGrEventTypeService reprocesoGrEventTypeService;
     private final ExcelService excelService;
 
     @Operation(summary = "Reprocesar órdenes reemplazando el ItemID contra I200",
@@ -253,7 +255,7 @@ public class ReprocesoController {
 
     @Operation(summary = "Reprocesar órdenes aplicando todas las correcciones contra I200",
             description = "El reproceso completo: recibe un Excel de dos columnas (A: JSON del pedido, B: remisión) y por " +
-                    "cada fila aplica, en este orden, las cinco correcciones que los demás endpoints hacen por separado, " +
+                    "cada fila aplica, en este orden, las seis correcciones que los demás endpoints hacen por separado, " +
                     "quedándose solo con las que la orden necesita. 1) Store y ShipNode \"F001\" pasan a \"001\". " +
                     "2) ItemID, ItemDesc, UnitPrice y ListPrice se toman del detalle de SKU de la remisión en BRIDGECORE, " +
                     "asignados por posición y solo donde el pedido viene vacío (un precio en cero cuenta como vacío). " +
@@ -262,14 +264,16 @@ public class ReprocesoController {
                     "4) PersonInfoBillTo se rellena con lo que trae PersonInfoShipTo más los valores por default del " +
                     "INT200. El BillTo va al final para que herede el correo y el nombre que el paso 3 escribió en el " +
                     "ShipTo. 5) ConditionVariable2 de cada OrderLine vacío o ausente se llena con \"PICK\" si " +
-                    "IS_CLICK_AND_COLLCT = Y o \"SHP\" si = N (la llave se crea). En todos los pasos se respeta el dato propio del pedido: solo se llena lo vacío, nulo o con " +
+                    "IS_CLICK_AND_COLLCT = Y o \"SHP\" si = N (la llave se crea). 6) ExtnGREventType de más de 24 " +
+                    "caracteres se recorta a 24, el límite de la columna de OMS; nunca frena el envío. " +
+                    "En los pasos 2 a 5 se respeta el dato propio del pedido: solo se llena lo vacío, nulo o con " +
                     "espacios, y una llave que no exista no se crea. Solo frenan el envío los campos que el INT200 exige " +
                     "(EMailID, FirstName, LastName, ConditionVariable2 y los obligatorios del BillTo); si BRIDGECORE no trae detalle de SKU o " +
                     "no cuadra con los OrderLines, ese paso se salta, se anota y la orden se envía igual. Una orden que no " +
                     "necesita nada también se envía, marcada \"sin cambios\". Las llamadas al I200 van espaciadas (250 ms " +
                     "entre envíos y 1 s cada 25) y la remisión se consulta tal como viene en la columna B. Devuelve un " +
                     ".xlsx (descarga) con columnas: Request Original, TrackingNumber y Response, donde Response indica qué " +
-                    "se aplicó: \"Enviado (F001, Item, Correo, BillTo) | <respuesta>\", \"Enviado (sin cambios) | " +
+                    "se aplicó: \"Enviado (F001, Item, Correo, BillTo, ConditionVariable2, GREventType) | <respuesta>\", \"Enviado (sin cambios) | " +
                     "<respuesta>\", \"Enviado (F001, Correo | sin Item: ...) | <respuesta>\", \"No enviado. Sin datos en " +
                     "BRIDGECORE para: ...\", \"No enviado. Falta: PersonInfoBillTo.State\" o el error.")
     @ApiResponse(responseCode = "200", description = "Archivo .xlsx (descarga) con el resultado del reproceso")
@@ -315,6 +319,35 @@ public class ReprocesoController {
                 .body(
                         excelService.crearReporteReproceso(
                                 reprocesoConditionVariable2Service.reprocesar(
+                                        excelService.leerReprocesoNode(file)
+                                )
+                        )
+                );
+    }
+
+    @Operation(summary = "Reprocesar órdenes recortando ExtnGREventType a 24 caracteres contra I200",
+            description = "Recibe un Excel de dos columnas (A: JSON del pedido, B: TrackingNumber). Corrige el error de OMS " +
+                    "\"EXTN_GR_EVENT_TYPE max 24 chars\": el INT200 declara 40 caracteres para Extn.ExtnGREventType (tipo de " +
+                    "evento de Mesa de Regalos) pero la columna de OMS solo acepta 24. Por cada fila, toda llave " +
+                    "\"ExtnGREventType\" con más de 24 caracteres se recorta a los primeros 24 (sin espacios sobrantes) y la " +
+                    "orden se envía una por una al servicio I200 de Apigee, espaciando las llamadas (250 ms entre envíos y " +
+                    "1 s cada 25). Las órdenes sin ExtnGREventType o con 24 caracteres o menos no se envían y se marcan " +
+                    "como \"No ExtnGREventType > 24\". Devuelve un .xlsx (descarga) con columnas: Request Original, " +
+                    "TrackingNumber y Response.")
+    @ApiResponse(responseCode = "200", description = "Archivo .xlsx (descarga) con el resultado del reproceso")
+    @PostMapping(value = "/greventtype/procesar", consumes = {"multipart/form-data"})
+    public ResponseEntity<?> procesarGrEventType(
+            @Parameter(description = "Archivo Excel (.xlsx/.xls) de dos columnas: A=JSON, B=TrackingNumber") @RequestParam("file") MultipartFile file) throws IOException {
+        if (excelService.esArchivoNoExcel(file.getOriginalFilename())) throw new IllegalArgumentException("Tipo de archivo inválido. Solo se permiten archivos Excel.");
+
+        HttpHeaders headers = new HttpHeaders();
+        headers.add(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=Reporte_Reproceso_GrEventType.xlsx");
+        return ResponseEntity.ok()
+                .headers(headers)
+                .contentType(MediaType.parseMediaType("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"))
+                .body(
+                        excelService.crearReporteReproceso(
+                                reprocesoGrEventTypeService.reprocesar(
                                         excelService.leerReprocesoNode(file)
                                 )
                         )

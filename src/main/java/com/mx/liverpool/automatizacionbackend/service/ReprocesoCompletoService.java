@@ -27,6 +27,7 @@ public class ReprocesoCompletoService {
     private static final String MARCA_ITEM = "Item";
     private static final String MARCA_CORREO = "Correo";
     private static final String MARCA_CONDITION = "ConditionVariable2";
+    private static final String MARCA_GR_EVENT_TYPE = "GREventType";
     private static final String SIN_CAMBIOS = "sin cambios";
     private static final String NODO_ORDER_LINES = "OrderLines";
 
@@ -142,6 +143,9 @@ public class ReprocesoCompletoService {
             faltantesCliente.add(MARCA_CONDITION);
         }
         if (!orden.path(NODO_ORDER_LINES).toString().equals(antesDeCondition)) aplicadas.add(MARCA_CONDITION);
+
+        // 6. ExtnGREventType a 24 caracteres. Nunca frena la orden.
+        if (ReprocesoGrEventTypeService.recortar(orden)) aplicadas.add(MARCA_GR_EVENT_TYPE);
 
         // El veto mira el resultado, no la fuente: solo frena lo que el INT200 exige y quedó vacío.
         List<String> motivos = new ArrayList<>();
