@@ -24,18 +24,24 @@ public class RemisionRepository {
     private final String consultaDetalleSkuRemision;
     private final String consultaClienteRemision;
     private final String consultaBcNoOms;
+    private final String consultaBcNoOmsOrdenVenta;
+    private final String consultaBcNoOmsShippingGroup;
 
     @Autowired
     public RemisionRepository(@Qualifier("bridgeCoreDataSource") DataSource namedParameterJdbcTemplate,
                                    @Value("${consulta.check-cobro-remision}") String consultaCobroRemision,
                                    @Value("${consulta.detalle-sku-remision}") String consultaDetalleSkuRemision,
                                    @Value("${consulta.cliente-remision}") String consultaClienteRemision,
-                                   @Value("${consulta.bc-nooms}") String consultaBcNoOms) {
+                                   @Value("${consulta.bc-nooms}") String consultaBcNoOms,
+                                   @Value("${consulta.bc-nooms-orden-venta}") String consultaBcNoOmsOrdenVenta,
+                                   @Value("${consulta.bc-nooms-shipping-group}") String consultaBcNoOmsShippingGroup) {
         this.namedParameterJdbcTemplate = new NamedParameterJdbcTemplate(namedParameterJdbcTemplate);
         this.consultaCobroRemision = consultaCobroRemision;
         this.consultaDetalleSkuRemision = consultaDetalleSkuRemision;
         this.consultaClienteRemision = consultaClienteRemision;
         this.consultaBcNoOms = consultaBcNoOms;
+        this.consultaBcNoOmsOrdenVenta = consultaBcNoOmsOrdenVenta;
+        this.consultaBcNoOmsShippingGroup = consultaBcNoOmsShippingGroup;
     }
 
     public List<Remision> obtenerCobroRemisiones(List<String> remisiones) {
@@ -72,9 +78,22 @@ public class RemisionRepository {
     // columnas de tx_informacion_procesada y queryForList preserva el orden del SELECT. El troceo de las
     // remisiones en lotes de 1000 (límite del IN de Oracle) lo hace el servicio.
     public List<Map<String, Object>> obtenerBcNoOms(List<String> remisiones) {
-        Map<String, Object> params = new HashMap<>();
-        params.put("remisiones", remisiones);
+        return obtenerVolcadoBc(consultaBcNoOms, remisiones);
+    }
 
-        return namedParameterJdbcTemplate.queryForList(consultaBcNoOms, params);
+    public List<Map<String, Object>> obtenerBcNoOmsPorOrdenVenta(List<String> ordenesVenta) {
+        return obtenerVolcadoBc(consultaBcNoOmsOrdenVenta, ordenesVenta);
+    }
+
+    public List<Map<String, Object>> obtenerBcNoOmsPorShippingGroup(List<String> shippingGroups) {
+        return obtenerVolcadoBc(consultaBcNoOmsShippingGroup, shippingGroups);
+    }
+
+    // Las tres consultas comparten el SELECT de consulta.bc-nooms-base; solo cambia la columna del IN.
+    private List<Map<String, Object>> obtenerVolcadoBc(String consulta, List<String> valores) {
+        Map<String, Object> params = new HashMap<>();
+        params.put("valores", valores);
+
+        return namedParameterJdbcTemplate.queryForList(consulta, params);
     }
 }

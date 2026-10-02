@@ -10,6 +10,7 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.function.Function;
 
 /**
  * Consulta síncrona del volcado de transacciones no enviadas a OMS por remisión. Lee un Excel de
@@ -27,17 +28,36 @@ public class ConsultaBcService {
 
     public byte[] consultarNoOms(MultipartFile file) throws IOException {
         log.info("Entrando a consultarNoOms");
+        byte[] reporte = consultarPorLotes(file, remisionRepository::obtenerBcNoOms);
+        log.info("Finalizando consultarNoOms");
+        return reporte;
+    }
 
-        List<String> remisiones = excelService.leerRemisionesDeExcel(file);
+    public byte[] consultarNoOmsPorOrdenVenta(MultipartFile file) throws IOException {
+        log.info("Entrando a consultarNoOmsPorOrdenVenta");
+        byte[] reporte = consultarPorLotes(file, remisionRepository::obtenerBcNoOmsPorOrdenVenta);
+        log.info("Finalizando consultarNoOmsPorOrdenVenta");
+        return reporte;
+    }
+
+    public byte[] consultarNoOmsPorShippingGroup(MultipartFile file) throws IOException {
+        log.info("Entrando a consultarNoOmsPorShippingGroup");
+        byte[] reporte = consultarPorLotes(file, remisionRepository::obtenerBcNoOmsPorShippingGroup);
+        log.info("Finalizando consultarNoOmsPorShippingGroup");
+        return reporte;
+    }
+
+    // Lee la columna A del Excel y la consulta en lotes con la consulta dada; el reporte es el mismo para las tres llaves.
+    private byte[] consultarPorLotes(MultipartFile file, Function<List<String>, List<Map<String, Object>>> consulta) throws IOException {
+        List<String> valores = excelService.leerRemisionesDeExcel(file);
 
         List<Map<String, Object>> filas = new ArrayList<>();
-        for (List<String> lote : particionar(remisiones, TAMANO_LOTE_ORACLE)) {
-            filas.addAll(remisionRepository.obtenerBcNoOms(lote));
+        for (List<String> lote : particionar(valores, TAMANO_LOTE_ORACLE)) {
+            filas.addAll(consulta.apply(lote));
         }
 
-        byte[] reporte = excelService.crearReporteBc(filas);
-        log.info("Finalizando consultarNoOms con {} remisiones y {} filas", remisiones.size(), filas.size());
-        return reporte;
+        log.info("Consultados {} valores, {} filas", valores.size(), filas.size());
+        return excelService.crearReporteBc(filas);
     }
 
     // Trocea la lista en sublistas de a lo más tamano elementos, conservando el orden.

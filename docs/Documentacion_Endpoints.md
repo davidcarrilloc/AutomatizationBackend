@@ -332,10 +332,22 @@ impl: ValidadorService.extraerMarketplace, ExcelService.leerMarketplace/crearRep
 
 ## Consulta BC `/api/v1/consulta-bc` · ConsultaBcController → ConsultaBcService
 
-### POST /api/v1/consulta-bc/nooms
+### POST /api/v1/consulta-bc/trackingnumber
 desc: TX no enviadas a OMS (`id_cat_estatus=0`, `id_tipo_tx=1`) de lista de remisiones, BRIDGECORE tx+tx_informacion_procesada. Lotes de 1000 (límite `IN` Oracle), concatenados en orden. Síncrono. Equivale a `___todo_BC_by_REMISIONremtypemkp_nooms_____.xlsx`.
 req: multipart Excel 1 col A=remisiones (encabezado inocuo).
 res: 200 xlsx hoja `Result`, 46 cols: REMISION, ATG_ORDER_ID, ATG_SHIP_GRP_ID, FECHA_TX_COMPRA, TOTAL_COBRADO, REM_TYPE_GR, IS_MKP, resto de TIP. Sin filas ⇒ celda `Sin resultados`.
+params: file:Excel:req
+
+### POST /api/v1/consulta-bc/trackingnumber/orden-venta
+desc: igual que `/trackingnumber` pero filtra por `tip.orden_venta`. Lotes de 1000. Síncrono.
+req: multipart Excel 1 col A=órdenes de venta.
+res: 200 xlsx `Reporte_BC_OrdenVenta.xlsx`, mismas 46 cols que `/trackingnumber`.
+params: file:Excel:req
+
+### POST /api/v1/consulta-bc/trackingnumber/shipping-group
+desc: igual que `/trackingnumber` pero filtra por `tip.atg_ship_grp_id`. Lotes de 1000. Síncrono.
+req: multipart Excel 1 col A=shipping groups ATG.
+res: 200 xlsx `Reporte_BC_ShippingGroup.xlsx`, mismas 46 cols que `/trackingnumber`.
 params: file:Excel:req
 
 ---
@@ -423,3 +435,62 @@ desc: fuerza lectura SFTP.
 req: nada.
 res: 200 cuerpo de `/resumen` actualizado | 500 si falta algún archivo (snapshot previo intacto).
 params: —
+
+---
+
+## Reenvío fulfillment `/api/v1/reenvio` · ReenvioController → ReenvioService, ReenvioRepository
+
+Reenvío masivo al fulfillment (`FulfillmentService.consultarFulfillment`, OGCP `/order-service/v1/order/fulFillment`) de todas las cobradas, día por día (00:00:00 ≤ FECHA_TX_COMPRA < día+1), desde ayer hacia atrás hasta `reenvio.fecha-limite` (2026-06-15) inclusive, saltando días en bitácora. Una sola corrida; executor propio `reenvioExecutor` (hilo virtual), no comparte cola con `/fulfillment/reproceso`.
+Origen (`consulta.reenvio-dia`, `bridgeCoreDataSource`, UNION ALL): LP BT (BRIDGECORE, tipo '0') → `orden_venta` `LP_BT`; LP SL (tipo '1') → `remision` `LP_SL`; SBB (BRIDGECORE2, tipo '0','1') → `NVL(tracking_number, atg_ship_grp_id)` `SBB_TRACKING`|`SBB_SG`. Filtros: id_cat_estatus=0, id_tipo_tx=1, total_cobrado>0, atg_ship_grp_id/atg_order_id NOT NULL. Sin filtro C&C ni rem_type_gr. Valores nulos/vacíos fuera, dedupe por (remisión, origen). Sin relleno a 10 dígitos.
+Ritmo: secuencial sin pausa; 500/504 ⇒ pausa 3 s, difiere al final del día; hasta 3 rondas, la última conserva el error.
+Categoría: `ERROR` si response trae `"error"` o JSON no parsea; si no `FAILURE` si statusMkp|statusOms=FAILURE; si no `SUCCESS` si algún status SUCCESS; si no `OTRO`.
+SQLite: `reenvio_bitacora` (fecha PK yyyy-MM-dd, total, success, failure, error, otro, inicio, fin) se escribe al cerrar el día; `reenvio_resultado` (fecha, remision, origen, categoria, response, json) se escribe por remisión; al empezar un día se borran sus resultados (día interrumpido se repite completo).
+`EstatusReenvio` = {estatus, fechaActual, diasProcesados, diasTotales, totalDia, procesadasDia, remisionActual, success, failure, error, otro, inicio, fin, mensaje}; estatus ∈ {SIN_INICIAR, EN_PROCESO, DETENIENDO, DETENIDO, COMPLETADO, ERROR}. En memoria: reinicio de la app ⇒ SIN_INICIAR.
+
+### POST /api/v1/reenvio/ejecutar
+desc: play/pausa. Sin corrida ⇒ arranca con los días pendientes (ayer→límite menos bitácora). Con corrida ⇒ `DETENIENDO`, termina la remisión en curso y queda `DETENIDO`. Sin pendientes ⇒ `COMPLETADO`.
+req: nada.
+res: 202 EstatusReenvio.
+params: —
+
+### POST /api/v1/reenvio/reiniciar
+desc: detiene la corrida viva y espera a que termine (≤ una llamada o 3 s de pausa); luego arranca desde ayer saltando bitácora.
+req: nada.
+res: 202 EstatusReenvio.
+params: —
+
+### GET /api/v1/reenvio/estatus
+desc: avance de la corrida en memoria.
+req: nada.
+res: 200 EstatusReenvio.
+params: —
+
+### POST /api/v1/reenvio/limpiar
+desc: detiene la corrida viva (espera a que termine) y borra lo indicado. SUCCESS|FAILURE|ERROR|OTRO ⇒ borra esos `reenvio_resultado` (salen del Excel y conteos); DIAS ⇒ vacía `reenvio_bitacora` (días se vuelven a recorrer); TODO ⇒ todo + estatus `SIN_INICIAR`. Al recorrer un día se saltan remisiones con resultado ⇒ DIAS+FAILURE reenvía solo las FAILURE. Irreversible.
+req: query `tipos` (uno o varios, case-insensitive).
+res: 200 EstatusReenvio con `mensaje` = conteo borrado | 400 si vacío o tipo inválido.
+params: tipos:List<String>:req — SUCCESS|FAILURE|ERROR|OTRO|DIAS|TODO
+impl: ReenvioService.limpiar/validarTipos, ReenvioRepository.borrarResultados/borrarBitacora
+
+### GET /api/v1/reenvio/bitacora
+desc: días procesados, fecha desc.
+req: nada.
+res: 200 lista {fecha, total, success, failure, error, otro, inicio, fin}.
+params: —
+
+### GET /api/v1/reenvio/excel
+desc: descarga resultados del rango (SXSSF, streaming).
+req: query opcional fechaInicio, fechaFin ISO date.
+res: 200 xlsx Fecha | Remisión | Origen | Categoría | Response | JSON; 400 si >1 048 575 filas o fecha mal formada.
+params: fechaInicio:date yyyy-MM-dd:opt — inclusivo; sin él, desde el inicio · fechaFin:date yyyy-MM-dd:opt — inclusivo; sin él, hasta el final
+
+---
+
+## Memoria `/api/v1/memoria` · MemoriaController → MemoriaService
+
+### POST /api/v1/memoria/liberar
+desc: vacía `estatusPorJob`/`resultadosPorJob` de FulfillmentService, ReprocesoCompletoAsyncService, AvailabilityService, FachadaService, StatusOmsService; Reenvío ⇒ detiene sin `join`, `SIN_INICIAR`, `/ejecutar` puede arrancar. Jobs vivos lanzan `CancellationException` en su siguiente iteración; encolados salen al arrancar. SQLite intacto. Llamada HTTP colgada sigue ocupando su hilo.
+req: nada.
+res: 200 {fulfillment, reprocesoCompleto, availability, fachada, fulfillmentTxt: int jobs liberados, reenvio: EstatusReenvio}.
+params: —
+impl: `liberarMemoria()` + `verificarVigente(jobId)` en cada servicio; ReenvioService.esVigente (hiloCorrida)

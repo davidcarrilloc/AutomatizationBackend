@@ -26,6 +26,7 @@ import java.util.Comparator;
 import java.util.Deque;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.CancellationException;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -102,6 +103,7 @@ public class FachadaService {
 
         List<List<ReprocesoNodeRow>> bloques = particionar(filas, tamanoBloque);
         int total = filas.size();
+        verificarVigente(jobId);
         LocalDateTime inicio = estatusPorJob.get(jobId).getInicio();
 
         // Un slot por bloque: se juntan en orden de bloque para preservar el orden de entrada.
@@ -245,6 +247,7 @@ public class FachadaService {
         for (List<ReprocesoResult> bloque : porBloque) {
             if (bloque != null) aplanado.addAll(bloque);
         }
+        verificarVigente(jobId);
         resultadosPorJob.put(jobId, aplanado);
     }
 
@@ -260,8 +263,23 @@ public class FachadaService {
                 .build();
     }
 
+    public int liberarMemoria() {
+        log.info("Entrando a liberarMemoria");
+        int jobs = estatusPorJob.size();
+        estatusPorJob.clear();
+        resultadosPorJob.clear();
+        log.info("Finalizando liberarMemoria con {} jobs liberados", jobs);
+        return jobs;
+    }
+
+    // Tras /memoria/liberar el job ya no existe: se corta el hilo en vez de volver a escribirlo en memoria.
+    private void verificarVigente(String jobId) {
+        if (!resultadosPorJob.containsKey(jobId)) throw new CancellationException("Job " + jobId + " liberado de memoria");
+    }
+
     private void publicarEstatus(String jobId, String estatus, int total, int procesados, int errores,
                                  int bloques, LocalDateTime inicio, LocalDateTime fin) {
+        verificarVigente(jobId);
         estatusPorJob.put(jobId, EstatusFachada.builder()
                 .jobId(jobId)
                 .estatus(estatus)

@@ -29,4 +29,11 @@ public class AsyncConfig {
         executor.setVirtualThreads(true);
         return executor;
     }
+
+    @Bean(name = "reenvioExecutor")
+    public TaskExecutor reenvioExecutor() {
+        SimpleAsyncTaskExecutor executor = new SimpleAsyncTaskExecutor("reenvio-");
+        executor.setVirtualThreads(true);
+        return executor;
+    }
 }

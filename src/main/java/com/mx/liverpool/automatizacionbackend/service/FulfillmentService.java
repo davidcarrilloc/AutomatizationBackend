@@ -24,6 +24,7 @@ import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.CancellationException;
 import java.util.concurrent.ConcurrentHashMap;
 
 @Service
@@ -86,6 +87,7 @@ public class FulfillmentService {
                 .toList();
 
         int total = normalizados.size();
+        verificarVigente(jobId);
         LocalDateTime inicio = estatusPorJob.get(jobId).getInicio();
         List<FulfillmentResult> resultados = resultadosPorJob.get(jobId);
         List<String> diferidos = new ArrayList<>();
@@ -165,7 +167,7 @@ public class FulfillmentService {
         return copia;
     }
 
-    private boolean esErrorGateway(FulfillmentResult resultado) {
+    public boolean esErrorGateway(FulfillmentResult resultado) {
         if (resultado == null) return false;
         String contenido = (resultado.getJson() != null ? resultado.getJson() : "")
                 + (resultado.getResponse() != null ? resultado.getResponse() : "");
@@ -181,8 +183,23 @@ public class FulfillmentService {
         }
     }
 
+    public int liberarMemoria() {
+        log.info("Entrando a liberarMemoria");
+        int jobs = estatusPorJob.size();
+        estatusPorJob.clear();
+        resultadosPorJob.clear();
+        log.info("Finalizando liberarMemoria con {} jobs liberados", jobs);
+        return jobs;
+    }
+
+    // Tras /memoria/liberar el job ya no existe: se corta el hilo en vez de volver a escribirlo en memoria.
+    private void verificarVigente(String jobId) {
+        if (!resultadosPorJob.containsKey(jobId)) throw new CancellationException("Job " + jobId + " liberado de memoria");
+    }
+
     private void publicarEstatus(String jobId, String estatus, int total, int procesados, int conErrorGateway,
                                  int reprocesados, String trackingActual, LocalDateTime inicio, LocalDateTime fin) {
+        verificarVigente(jobId);
         estatusPorJob.put(jobId, EstatusFulfillment.builder()
                 .jobId(jobId)
                 .estatus(estatus)
@@ -196,7 +213,7 @@ public class FulfillmentService {
                 .build());
     }
 
-    private String rellenarDiezDigitos(String trackingNumber) {
+    public String rellenarDiezDigitos(String trackingNumber) {
         if (trackingNumber == null) return null;
         String limpio = trackingNumber.trim();
         return limpio.length() < 10 ? "0".repeat(10 - limpio.length()) + limpio : limpio;
@@ -217,7 +234,7 @@ public class FulfillmentService {
                 .bodyToMono(String.class);
     }
 
-    private Mono<FulfillmentResult> consultarFulfillment(String trackingNumber) {
+    public Mono<FulfillmentResult> consultarFulfillment(String trackingNumber) {
         return llamarFulfillment(trackingNumber)
                 .map(json -> construirResultado(trackingNumber, json))
                 .onErrorResume(e -> {

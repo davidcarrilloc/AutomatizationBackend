@@ -19,6 +19,8 @@ Server runs on port **9091**. Swagger UI at `http://localhost:9091/swagger-ui/in
 
 There are no automated tests in the project — manual testing via Swagger or Postman is the norm.
 
+**No compilar para verificar cada cambio.** El usuario prueba y avisa si algo no está OK; solo compilar si lo pide.
+
 ## Architecture
 
 Spring Boot 3.5 WAR app (Java 21, virtual threads enabled) targeting Liverpool's internal e-commerce systems.

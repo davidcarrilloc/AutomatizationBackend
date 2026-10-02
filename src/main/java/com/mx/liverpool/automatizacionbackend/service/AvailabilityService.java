@@ -23,6 +23,7 @@ import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.CancellationException;
 import java.util.concurrent.ConcurrentHashMap;
 
 @Service
@@ -94,6 +95,7 @@ public class AvailabilityService {
         log.info("Entrando a procesarJob de availability para job {} con {} filas", jobId, filas.size());
 
         int total = filas.size();
+        verificarVigente(jobId);
         LocalDateTime inicio = estatusPorJob.get(jobId).getInicio();
         List<AvailabilityResult> resultados = resultadosPorJob.get(jobId);
         List<AvailabilityRow> diferidos = new ArrayList<>();
@@ -269,8 +271,23 @@ public class AvailabilityService {
         }
     }
 
+    public int liberarMemoria() {
+        log.info("Entrando a liberarMemoria");
+        int jobs = estatusPorJob.size();
+        estatusPorJob.clear();
+        resultadosPorJob.clear();
+        log.info("Finalizando liberarMemoria con {} jobs liberados", jobs);
+        return jobs;
+    }
+
+    // Tras /memoria/liberar el job ya no existe: se corta el hilo en vez de volver a escribirlo en memoria.
+    private void verificarVigente(String jobId) {
+        if (!resultadosPorJob.containsKey(jobId)) throw new CancellationException("Job " + jobId + " liberado de memoria");
+    }
+
     private void publicarEstatus(String jobId, String estatus, int total, int procesados, int conErrorGateway,
                                  int reprocesados, String remisionActual, LocalDateTime inicio, LocalDateTime fin) {
+        verificarVigente(jobId);
         estatusPorJob.put(jobId, EstatusFulfillment.builder()
                 .jobId(jobId)
                 .estatus(estatus)

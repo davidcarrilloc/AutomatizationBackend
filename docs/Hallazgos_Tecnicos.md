@@ -20,9 +20,9 @@ Formato: `- [tema] hecho → consecuencia/regla`. Transversales primero, luego p
 ### Spring
 - [@Async] `this.metodo()` salta el proxy ⇒ síncrono. Auto-inyectar `@Lazy Self self` y llamar `self.procesarJob()`.
 - [scheduling] sin `spring.task.scheduling.pool.size` todos los `@Scheduled` comparten 1 hilo; `TxScheduler` (30/60 s) se congela tras una tarea lenta. Valor actual 4.
-- [executors] `fulfillmentExecutor` 1-2 hilos (solo `/fulfillment/reproceso`). `statusOmsExecutor` hilos virtuales (fulfillment-txt, fachada). No compartir: un job esperaría detrás de otro.
+- [executors] `fulfillmentExecutor` 1-2 hilos (solo `/fulfillment/reproceso`). `statusOmsExecutor` hilos virtuales (fulfillment-txt, fachada). `reenvioExecutor` hilo virtual (solo `/reenvio`). No compartir: un job esperaría detrás de otro.
 - [singleton] servicios son singleton + virtual threads ⇒ estado por petición (notas, filas enviadas, cols SKU) en variables LOCALES, nunca campos. `ReprocesoNodeRow` es `@Data` ⇒ usar `IdentityHashMap`, no `HashMap`.
-- [jobs] estado en `ConcurrentHashMap` en memoria; reinicio los borra.
+- [jobs] estado en `ConcurrentHashMap` en memoria; reinicio o `POST /memoria/liberar` los borra. Tras liberar, `verificarVigente(jobId)` (inicio de job, `publicarEstatus`, puts de resultados) lanza `CancellationException` para que el hilo huérfano no re-escriba el job. Reenvío: `liberarMemoria` no es `synchronized` (otros métodos pueden estar en `corrida.join()`), hace `corrida.complete(null)` y `hiloCorrida=null`; el hilo huérfano se corta con `esVigente()` y no inserta resultado ni bitácora.
 - [errores scheduler] schedulers antiguos no capturan; Spring se traga la excepción. Nuevos: try/catch y error en resumen.
 
 ### WebClient / APIs externas
@@ -50,7 +50,7 @@ Formato: `- [tema] hecho → consecuencia/regla`. Transversales primero, luego p
 
 ### Verificación
 - Arrancar la app abre 4 datasources Oracle inaccesibles desde dev ⇒ Swagger casi nunca es opción. Probar con harness de asserts (skill `verificacion-local`), build con JDK 23.
-- Pendiente E2E en servidor para: fulfillment-txt (2 jobs simultáneos), fachada (I200 real), availability (requiere secret), billto, combinado, itemid-auto (remisión 130116287: log `BRIDGECORE devolvió N filas…`; 0 filas ⇒ problema de consulta, no de código), validador, marketplace, extracto-bc/validacion-sl (SFTP real, permisos LOGVAD en `/ecommerce_oms/` y `/out_sl/`, TxScheduler sigue latiendo durante subida).
+- Pendiente E2E en servidor para: fulfillment-txt (2 jobs simultáneos), fachada (I200 real), availability (requiere secret), billto, combinado, itemid-auto (remisión 130116287: log `BRIDGECORE devolvió N filas…`; 0 filas ⇒ problema de consulta, no de código), validador, marketplace, extracto-bc/validacion-sl (SFTP real, permisos LOGVAD en `/ecommerce_oms/` y `/out_sl/`, TxScheduler sigue latiendo durante subida), reenvio (query Oracle real, play/pausa/reiniciar, Excel de 1 día).
 
 ## POR MÓDULO
 
@@ -105,3 +105,15 @@ Formato: `- [tema] hecho → consecuencia/regla`. Transversales primero, luego p
 - [alcance] 3 consultas → 2 archivos `oms_sl_`/`oms_bt_` (pedido del consumidor OMS). Horario pasó de cada hora a diario 12:00 sobre día anterior: con sello `yyyyMMdd` las 24 corridas horarias se pisaban.
 - [CSV] sin modelo/RowMapper/librería: `queryForList(..., String.class)` + `String.join("\n")`. No traer `tip.*` (46 cols para usar 1).
 - [NULL] `IS NOT NULL` sobre la columna exportada (spec no lo tenía) evita líneas en blanco.
+
+### Reenvío (ReenvioService)
+- [reuso] tercer consumidor de fulfillment: `FulfillmentService.consultarFulfillment`/`esErrorGateway` pasaron a `public` en vez de una tercera copia o extraer cliente (decisión del usuario). StatusOmsService sigue con su copia.
+- [identificador] remisión (LP SL), orden_venta (LP BT), tracking_number/sg (SBB) son valores distintos; el Excel los pone en la columna "Remisión" y `Origen` dice cuál es.
+- [ventana] `>= día AND < día+1`, no `BETWEEN 00:00:00 AND 23:59:59`: TIMESTAMP con fracción en 23:59:59.x se perdía.
+- [play/pausa] estado "corriendo" = `!corrida.isDone()` (el `CompletableFuture` del `@Async`), no el string de estatus. `/reiniciar` hace `join()` antes de arrancar: sin él dos hilos escribirían el mismo día (el nuevo borra el día y el viejo inserta una fila tardía).
+- [bitácora] un día en bitácora nunca se reprocesa; recorrido siempre desde ayer saltando bitácora ⇒ reanudar y días nuevos salen del mismo cálculo (`diasPendientes`). Reprocesar un día = borrar su fila de `reenvio_bitacora` a mano.
+- [rango abierto] Excel sin fechas usa `'0000-01-01'`/`'9999-12-31'`; `LocalDate.MIN/MAX.toString()` da `-999999999…`/`+999999999…` y `+` < `2` en comparación de texto de SQLite ⇒ rango vacío.
+- [Excel] SXSSF (ventana de 100 filas) en vez de XSSF: rangos de meses. Tope 1 048 575 filas ⇒ 400 antes de leer resultados.
+- [BRIDGECORE2.tracking_number] existe en BRIDGECORE y BRIDGECORE2 (verificado en all_tab_columns). Error de query ⇒ estatus `ERROR` con el ORA en `mensaje` (causa raíz vía `getMostSpecificCause`).
+- [reenvio-dia tipos] `remision`/`orden_venta` son NUMBER y `tracking_number`/`atg_ship_grp_id` VARCHAR2 ⇒ `UNION ALL` sin `TO_CHAR` truena con ORA-01790 (bad SQL grammar). El NUMBER pierde ceros a la izquierda ⇒ se rellena a 10 dígitos con `FulfillmentService.rellenarDiezDigitos`, igual que el flujo por Excel.
+- [tx.id_tipo_articulo] es NUMBER: `IN ('0', '1')` funciona por conversión implícita, pero un `CASE simple WHEN '0'` truena con ORA-00932 ⇒ en `CASE` comparar contra `0` sin comillas.

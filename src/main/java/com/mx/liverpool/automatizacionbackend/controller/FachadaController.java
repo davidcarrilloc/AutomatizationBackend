@@ -21,7 +21,7 @@ import java.io.IOException;
 @CrossOrigin(origins = "*")
 @RequiredArgsConstructor
 @Log4j2
-@Tag(name = "Fachada", description = "Reenvío masivo y concurrente de órdenes tal cual a la fachada I200, por jobId")
+@Tag(name = "Envio Directo Fachada", description = "Reenvío masivo y concurrente de órdenes tal cual a la fachada I200, por jobId")
 public class FachadaController {
     private final FachadaService fachadaService;
     private final ExcelService excelService;

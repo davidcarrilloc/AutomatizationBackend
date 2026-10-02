@@ -19,6 +19,7 @@ import java.util.Comparator;
 import java.util.Deque;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.CancellationException;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Consumer;
@@ -79,6 +80,7 @@ public class ReprocesoCompletoAsyncService {
         log.info("Entrando a procesarJob de reproceso completo async para job {} con {} filas", jobId, filas.size());
 
         int total = filas.size();
+        verificarVigente(jobId);
         LocalDateTime inicio = estatusPorJob.get(jobId).getInicio();
 
         // Batch de BRIDGECORE + transformación fila por fila (sin enviar). Es parte del trabajo del job.
@@ -100,6 +102,7 @@ public class ReprocesoCompletoAsyncService {
                 tracking -> publicarEstatus(jobId, ESTATUS_EN_PROCESO, total, procesados.get(),
                         conErrorGateway.get(), reprocesados.get(), tracking, inicio, null));
 
+        verificarVigente(jobId);
         resultadosPorJob.put(jobId, resultados);
         String estatusFinal = conErrorGateway.get() == 0 ? ESTATUS_COMPLETADO : ESTATUS_COMPLETADO_CON_ERRORES;
         publicarEstatus(jobId, estatusFinal, total, procesados.get(), conErrorGateway.get(), reprocesados.get(), null, inicio, LocalDateTime.now());
@@ -207,8 +210,23 @@ public class ReprocesoCompletoAsyncService {
         }
     }
 
+    public int liberarMemoria() {
+        log.info("Entrando a liberarMemoria");
+        int jobs = estatusPorJob.size();
+        estatusPorJob.clear();
+        resultadosPorJob.clear();
+        log.info("Finalizando liberarMemoria con {} jobs liberados", jobs);
+        return jobs;
+    }
+
+    // Tras /memoria/liberar el job ya no existe: se corta el hilo en vez de volver a escribirlo en memoria.
+    private void verificarVigente(String jobId) {
+        if (!resultadosPorJob.containsKey(jobId)) throw new CancellationException("Job " + jobId + " liberado de memoria");
+    }
+
     private void publicarEstatus(String jobId, String estatus, int total, int procesados, int conErrorGateway,
                                  int reprocesados, String trackingActual, LocalDateTime inicio, LocalDateTime fin) {
+        verificarVigente(jobId);
         estatusPorJob.put(jobId, EstatusFulfillment.builder()
                 .jobId(jobId)
                 .estatus(estatus)

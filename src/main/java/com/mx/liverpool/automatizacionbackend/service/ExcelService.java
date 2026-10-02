@@ -11,6 +11,7 @@ import com.mx.liverpool.automatizacionbackend.model.MarketplaceResult;
 import com.mx.liverpool.automatizacionbackend.model.MarketplaceRow;
 import com.mx.liverpool.automatizacionbackend.model.OmsFaltante;
 import com.mx.liverpool.automatizacionbackend.model.OrdenSoms;
+import com.mx.liverpool.automatizacionbackend.model.ReenvioResultado;
 import com.mx.liverpool.automatizacionbackend.model.ReprocesoItemIdRow;
 import com.mx.liverpool.automatizacionbackend.model.ReprocesoNodeRow;
 import com.mx.liverpool.automatizacionbackend.model.ReprocesoResult;
@@ -22,6 +23,7 @@ import lombok.extern.log4j.Log4j2;
 import org.apache.poi.ss.usermodel.*;
 import org.apache.poi.ss.util.CellRangeAddress;
 import org.apache.poi.xddf.usermodel.chart.*;
+import org.apache.poi.xssf.streaming.SXSSFWorkbook;
 import org.apache.poi.xssf.usermodel.XSSFChart;
 import org.apache.poi.xssf.usermodel.XSSFClientAnchor;
 import org.apache.poi.xssf.usermodel.XSSFDrawing;
@@ -197,6 +199,38 @@ public class ExcelService {
 
             workbook.write(out);
             return out.toByteArray();
+        }
+    }
+
+    public byte[] crearReporteReenvio(List<ReenvioResultado> resultados) throws IOException {
+        log.info("Entrando a crearReporteReenvio con {} resultados", resultados.size());
+        SXSSFWorkbook workbook = new SXSSFWorkbook(100);
+        try (ByteArrayOutputStream out = new ByteArrayOutputStream()) {
+            Sheet sheet = workbook.createSheet("Reenvio");
+
+            Row header = sheet.createRow(0);
+            String[] encabezados = {"Fecha", "Remisión", "Origen", "Categoría", "Response", "JSON"};
+            for (int i = 0; i < encabezados.length; i++) {
+                header.createCell(i).setCellValue(encabezados[i]);
+            }
+
+            int rowNum = 1;
+            for (ReenvioResultado resultado : resultados) {
+                Row row = sheet.createRow(rowNum++);
+                row.createCell(0).setCellValue(truncarCelda(resultado.getFecha()));
+                row.createCell(1).setCellValue(truncarCelda(resultado.getRemision()));
+                row.createCell(2).setCellValue(truncarCelda(resultado.getOrigen()));
+                row.createCell(3).setCellValue(truncarCelda(resultado.getCategoria()));
+                row.createCell(4).setCellValue(truncarCelda(resultado.getResponse()));
+                row.createCell(5).setCellValue(truncarCelda(resultado.getJson()));
+            }
+
+            workbook.write(out);
+            log.info("Finalizando crearReporteReenvio");
+            return out.toByteArray();
+        } finally {
+            workbook.dispose();
+            workbook.close();
         }
     }
 
