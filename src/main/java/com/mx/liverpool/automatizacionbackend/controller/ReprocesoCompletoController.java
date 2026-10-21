@@ -36,7 +36,7 @@ public class ReprocesoCompletoController {
     @ApiResponse(responseCode = "202", description = "Reproceso aceptado; devuelve el jobId y su estatus")
     @PostMapping(value = "/async", consumes = {"multipart/form-data"})
     public ResponseEntity<?> iniciarReprocesoCompleto(
-            @Parameter(description = "Archivo Excel (.xlsx/.xls) de dos columnas: A=JSON, B=remisión") @RequestParam("file") MultipartFile file) throws IOException {
+            @Parameter(description = "Archivo Excel (.xlsx/.xls) de dos columnas: A=JSON, B=remisión, orden de venta (98…) o shipping group (sg…)") @RequestParam("file") MultipartFile file) throws IOException {
         if (excelService.esArchivoNoExcel(file.getOriginalFilename())) throw new IllegalArgumentException("Tipo de archivo inválido. Solo se permiten archivos Excel.");
 
         return ResponseEntity.accepted().body(

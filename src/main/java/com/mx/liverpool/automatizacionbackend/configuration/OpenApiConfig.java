@@ -20,7 +20,7 @@ public class OpenApiConfig {
                         .description("Automatizaciones de Venta y Entrega"));
     }
 
-    private static final List<String> TAGS_PRIMERO = List.of("Consulta Bridgecore", "Fulfillment", "Reproceso Completo Asíncrono", "Envio Directo Fachada", "Liberar memoria");
+    private static final List<String> TAGS_PRIMERO = List.of("Consulta Bridgecore", "Fulfillment", "Reproceso Completo Asíncrono", "Envio Directo Fachada", "Liberar memoria", "APV");
 
     // Swagger UI pinta los tags en el orden de la lista; sort estable: el resto conserva su orden
     @Bean

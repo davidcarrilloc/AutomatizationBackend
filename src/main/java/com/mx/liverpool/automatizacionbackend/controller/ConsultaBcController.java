@@ -27,42 +27,42 @@ public class ConsultaBcController {
     private final ExcelService excelService;
 
     @Operation(summary = "Consultar transacciones no enviadas a OMS por remisión",
-            description = "Recibe un Excel de una columna (A: remisiones) y devuelve, por cada remisión, sus transacciones " +
+            description = "Recibe un .txt con una remisión por línea y devuelve, por cada remisión, sus transacciones " +
                     "no enviadas a OMS (id_cat_estatus = 0, id_tipo_tx = 1) desde BRIDGECORE. Las remisiones se consultan " +
                     "en lotes de 1000 (límite del IN de Oracle) y los resultados se concatenan. Devuelve un .xlsx (descarga) " +
                     "con el volcado de 46 columnas de tx_informacion_procesada.")
     @ApiResponse(responseCode = "200", description = "Archivo .xlsx (descarga) con el volcado de transacciones no enviadas a OMS")
     @PostMapping(value = "/trackingnumber", consumes = {"multipart/form-data"})
     public ResponseEntity<?> consultarNoOms(
-            @Parameter(description = "Archivo Excel (.xlsx/.xls) de una columna: A=remisiones") @RequestParam("file") MultipartFile file) throws IOException {
-        validarExcel(file);
+            @Parameter(description = "Archivo .txt con una remisión por línea") @RequestParam("file") MultipartFile file) throws IOException {
+        validarTxt(file);
         return descargar(consultaBcService.consultarNoOms(file), "Reporte_BC.xlsx");
     }
 
     @Operation(summary = "Consultar transacciones no enviadas a OMS por orden de venta",
-            description = "Igual que /trackingnumber pero la columna A trae órdenes de venta (tip.orden_venta). Lotes de 1000. " +
+            description = "Igual que /trackingnumber pero recibe un .txt con una orden de venta (tip.orden_venta) por línea. Lotes de 1000. " +
                     "Devuelve el mismo .xlsx (descarga) de 46 columnas de tx_informacion_procesada.")
     @ApiResponse(responseCode = "200", description = "Archivo .xlsx (descarga) con el volcado de transacciones no enviadas a OMS")
     @PostMapping(value = "/trackingnumber/orden-venta", consumes = {"multipart/form-data"})
     public ResponseEntity<?> consultarNoOmsPorOrdenVenta(
-            @Parameter(description = "Archivo Excel (.xlsx/.xls) de una columna: A=órdenes de venta") @RequestParam("file") MultipartFile file) throws IOException {
-        validarExcel(file);
+            @Parameter(description = "Archivo .txt con una orden de venta por línea") @RequestParam("file") MultipartFile file) throws IOException {
+        validarTxt(file);
         return descargar(consultaBcService.consultarNoOmsPorOrdenVenta(file), "Reporte_BC_OrdenVenta.xlsx");
     }
 
     @Operation(summary = "Consultar transacciones no enviadas a OMS por shipping group",
-            description = "Igual que /trackingnumber pero la columna A trae shipping groups de ATG (tip.atg_ship_grp_id). Lotes de 1000. " +
+            description = "Igual que /trackingnumber pero recibe un .txt con un shipping group de ATG (tip.atg_ship_grp_id) por línea. Lotes de 1000. " +
                     "Devuelve el mismo .xlsx (descarga) de 46 columnas de tx_informacion_procesada.")
     @ApiResponse(responseCode = "200", description = "Archivo .xlsx (descarga) con el volcado de transacciones no enviadas a OMS")
     @PostMapping(value = "/trackingnumber/shipping-group", consumes = {"multipart/form-data"})
     public ResponseEntity<?> consultarNoOmsPorShippingGroup(
-            @Parameter(description = "Archivo Excel (.xlsx/.xls) de una columna: A=shipping groups") @RequestParam("file") MultipartFile file) throws IOException {
-        validarExcel(file);
+            @Parameter(description = "Archivo .txt con un shipping group por línea") @RequestParam("file") MultipartFile file) throws IOException {
+        validarTxt(file);
         return descargar(consultaBcService.consultarNoOmsPorShippingGroup(file), "Reporte_BC_ShippingGroup.xlsx");
     }
 
-    private void validarExcel(MultipartFile file) {
-        if (excelService.esArchivoNoExcel(file.getOriginalFilename())) throw new IllegalArgumentException("Tipo de archivo inválido. Solo se permiten archivos Excel.");
+    private void validarTxt(MultipartFile file) {
+        if (excelService.esArchivoNoTxt(file.getOriginalFilename())) throw new IllegalArgumentException("Tipo de archivo inválido. Solo se permiten archivos .txt.");
     }
 
     private ResponseEntity<?> descargar(byte[] reporte, String nombreArchivo) {

@@ -13,8 +13,8 @@ import java.util.Map;
 import java.util.function.Function;
 
 /**
- * Consulta síncrona del volcado de transacciones no enviadas a OMS por remisión. Lee un Excel de
- * remisiones, consulta BRIDGECORE en lotes de 1000 (límite del IN de Oracle) y devuelve el .xlsx.
+ * Consulta síncrona del volcado de transacciones no enviadas a OMS. Lee un .txt de remisiones, órdenes de venta
+ * o shipping groups, consulta BRIDGECORE en lotes de 1000 (límite del IN de Oracle) y devuelve el .xlsx.
  */
 @Service
 @RequiredArgsConstructor
@@ -28,29 +28,27 @@ public class ConsultaBcService {
 
     public byte[] consultarNoOms(MultipartFile file) throws IOException {
         log.info("Entrando a consultarNoOms");
-        byte[] reporte = consultarPorLotes(file, remisionRepository::obtenerBcNoOms);
+        byte[] reporte = consultarPorLotes(excelService.leerLineasDeTxt(file), remisionRepository::obtenerBcNoOms);
         log.info("Finalizando consultarNoOms");
         return reporte;
     }
 
     public byte[] consultarNoOmsPorOrdenVenta(MultipartFile file) throws IOException {
         log.info("Entrando a consultarNoOmsPorOrdenVenta");
-        byte[] reporte = consultarPorLotes(file, remisionRepository::obtenerBcNoOmsPorOrdenVenta);
+        byte[] reporte = consultarPorLotes(excelService.leerLineasDeTxt(file), remisionRepository::obtenerBcNoOmsPorOrdenVenta);
         log.info("Finalizando consultarNoOmsPorOrdenVenta");
         return reporte;
     }
 
     public byte[] consultarNoOmsPorShippingGroup(MultipartFile file) throws IOException {
         log.info("Entrando a consultarNoOmsPorShippingGroup");
-        byte[] reporte = consultarPorLotes(file, remisionRepository::obtenerBcNoOmsPorShippingGroup);
+        byte[] reporte = consultarPorLotes(excelService.leerLineasDeTxt(file), remisionRepository::obtenerBcNoOmsPorShippingGroup);
         log.info("Finalizando consultarNoOmsPorShippingGroup");
         return reporte;
     }
 
-    // Lee la columna A del Excel y la consulta en lotes con la consulta dada; el reporte es el mismo para las tres llaves.
-    private byte[] consultarPorLotes(MultipartFile file, Function<List<String>, List<Map<String, Object>>> consulta) throws IOException {
-        List<String> valores = excelService.leerRemisionesDeExcel(file);
-
+    // Consulta los valores en lotes con la consulta dada; el reporte es el mismo para las tres llaves.
+    private byte[] consultarPorLotes(List<String> valores, Function<List<String>, List<Map<String, Object>>> consulta) throws IOException {
         List<Map<String, Object>> filas = new ArrayList<>();
         for (List<String> lote : particionar(valores, TAMANO_LOTE_ORACLE)) {
             filas.addAll(consulta.apply(lote));

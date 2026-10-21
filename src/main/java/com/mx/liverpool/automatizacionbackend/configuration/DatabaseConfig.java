@@ -47,6 +47,12 @@ public class DatabaseConfig {
         return new JdbcTemplate(ds);
     }
 
+    @Bean(name = "apvDataSource")
+    @ConfigurationProperties(prefix = "apv.datasource")
+    public DataSource apvDataSource() {
+        return DataSourceBuilder.create().build();
+    }
+
     @Bean(name = "sqliteDataSource")
     @ConfigurationProperties(prefix = "sqlite.datasource")
     public DataSource sqliteDataSource() {

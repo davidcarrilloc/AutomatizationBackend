@@ -49,7 +49,7 @@ Formato: `- [tema] hecho → consecuencia/regla`. Transversales primero, luego p
 - [cero inicial] Excel convierte `0399010722` → `399010722`. Contra OGCP se rellena; contra BC hay que corregir el archivo.
 
 ### Verificación
-- Arrancar la app abre 4 datasources Oracle inaccesibles desde dev ⇒ Swagger casi nunca es opción. Probar con harness de asserts (skill `verificacion-local`), build con JDK 23.
+- Arrancar la app abre 5 datasources Oracle inaccesibles desde dev ⇒ Swagger casi nunca es opción. Probar con harness de asserts (skill `verificacion-local`), build con JDK 23.
 - Pendiente E2E en servidor para: fulfillment-txt (2 jobs simultáneos), fachada (I200 real), availability (requiere secret), billto, combinado, itemid-auto (remisión 130116287: log `BRIDGECORE devolvió N filas…`; 0 filas ⇒ problema de consulta, no de código), validador, marketplace, extracto-bc/validacion-sl (SFTP real, permisos LOGVAD en `/ecommerce_oms/` y `/out_sl/`, TxScheduler sigue latiendo durante subida), reenvio (query Oracle real, play/pausa/reiniciar, Excel de 1 día).
 
 ## POR MÓDULO
@@ -102,10 +102,24 @@ Formato: `- [tema] hecho → consecuencia/regla`. Transversales primero, luego p
 - [URL] se quitó el `where=custom(fields(orderNumber=…))` del spec: no derivable y no aplica a GET por id. `expand` se conservan.
 - [modelo] reusa `EstatusFulfillment` (remisión = tracking).
 
+### APV (ApvService)
+- [datasource] quinto datasource `apvDataSource` = USR_MONBRK@WLVPRO (172.17.212.129:1527, URL formato SID `@host:port:SID`, no `@//host/servicio`). Único con esquema `APPSALESMAN`.
+- [resend] una sola llamada con todas las remisiones (decisión del usuario), no una por fila ⇒ columna Resend repetida en todas las filas. Fallo del resend no aborta el job; marca COMPLETADO_CON_ERRORES.
+- [TXT] el spec pedía archivo temporal; se manda `ByteArrayResource` con `.filename("remisiones.txt")` en `MultipartBodyBuilder`: mismo multipart que el curl, sin archivo que limpiar. Sin filename la parte no viaja como archivo.
+- [espera] LOG_ORDER está disponible en cuanto responde el resend (dicho por el usuario) ⇒ sin espera ni polling; las consultas corren una sola vez justo después del resend. Si salen muchos "Sin TRANSACTION_ID" que al relanzar el job sí aparecen, esa premisa es falsa → hace falta espera antes de consultar.
+- [2 consultas] primera versión consultaba por fila (788 remisiones = 1 576 queries, `procesados` en 0 durante minutos). Ahora 2 por corrida con `IN`, en lotes de 1000 (`TAMANO_LOTE_IN`); la segunda usa solo los TRANSACTION_ID que dejó la primera. Consulta fallida ⇒ todas las filas con el error, sin enviar ni reintentar.
+- [empate] `mapearTransacciones` usa `putIfAbsent` sobre filas `CREATED_AT DESC` ⇒ gana la transacción más reciente; no se verifica que sea posterior al resend. Llave `ORDER_NUMBER.trim()` = misma expresión que la búsqueda. Si ORDER_NUMBER fuera NUMBER y la remisión trae cero inicial, no empata.
+- [diferido] solo error de fachada (`esReintentable` = error ∧ JSON presente). Sin TRANSACTION_ID/JSON = definitivo sin pausa (decisión del usuario): reconsultar no lo arregla.
+- [CLOB] `STERLING_RAW_REQUEST_JSON` mapea a `String` con `BeanPropertyRowMapper`; un modelo `ApvLogOrden` sirve a las dos consultas (el campo no seleccionado queda null).
+- [remisión] tal cual, sin relleno a 10 dígitos (decisión del usuario). Filtro `\d+` descarta encabezado.
+- [reuso] I200 vía `ReprocesoService.enviar` (sin pausas); estatus `EstatusFulfillment`; executor `statusOmsExecutor`. No llama a fulfillment OGCP.
+- [verificación] harness de asserts sobre `ApvService.procesarConRondas`; E2E pendiente en servidor (WLVPRO y ccenter no responden desde dev).
+
 ### Extracto BC (ExtractoBcService)
 - [alcance] 3 consultas → 2 archivos `oms_sl_`/`oms_bt_` (pedido del consumidor OMS). Horario pasó de cada hora a diario 12:00 sobre día anterior: con sello `yyyyMMdd` las 24 corridas horarias se pisaban.
 - [CSV] sin modelo/RowMapper/librería: `queryForList(..., String.class)` + `String.join("\n")`. No traer `tip.*` (46 cols para usar 1).
 - [NULL] `IS NOT NULL` sobre la columna exportada (spec no lo tenía) evita líneas en blanco.
+- [extracto_oms.sh] SQL duplicado en `extracto-oms/Extractor.java` (sin queries.properties) → cambio en `consulta.extracto-bc-*` obliga a recompilar el jar (`javac --release 8` + `jar uf`). Script ≠ backend: sin SFTP, 4 archivos en `liverpool_sl/`, `liverpool_bt/`, `suburbia/` junto al script; SBB partido por tipo ('1' SL, '0' BT) y sin `rem_type_gr` (no existe en BRIDGECORE2: ORA-00904). Credenciales en `extracto_oms.properties` (ignorado en git; plantilla `.example`).
 
 ### Reenvío (ReenvioService)
 - [reuso] tercer consumidor de fulfillment: `FulfillmentService.consultarFulfillment`/`esErrorGateway` pasaron a `public` en vez de una tercera copia o extraer cliente (decisión del usuario). StatusOmsService sigue con su copia.
@@ -118,3 +132,4 @@ Formato: `- [tema] hecho → consecuencia/regla`. Transversales primero, luego p
 - [BRIDGECORE2.tracking_number] existe en BRIDGECORE y BRIDGECORE2 (verificado en all_tab_columns). Error de query ⇒ estatus `ERROR` con el ORA en `mensaje` (causa raíz vía `getMostSpecificCause`).
 - [reenvio-dia tipos] `remision`/`orden_venta` son NUMBER y `tracking_number`/`atg_ship_grp_id` VARCHAR2 ⇒ `UNION ALL` sin `TO_CHAR` truena con ORA-01790 (bad SQL grammar). El NUMBER pierde ceros a la izquierda ⇒ se rellena a 10 dígitos con `FulfillmentService.rellenarDiezDigitos`, igual que el flujo por Excel.
 - [tx.id_tipo_articulo] es NUMBER: `IN ('0', '1')` funciona por conversión implícita, pero un `CASE simple WHEN '0'` truena con ORA-00932 ⇒ en `CASE` comparar contra `0` sin comillas.
+- [llave BC reprocesos] `RemisionRepository.obtenerDetalleSkuRemision`/`obtenerClienteRemision` eligen la columna del WHERE por prefijo de la col B: `sg…` (sin importar mayúsculas, se manda tal cual) → `atg_ship_grp_id`, `98…` → `orden_venta`, resto → `remision`. Aplica a itemid-auto, email, firstname, conditionvariable2, completo y completo async ⇒ un flujo nuevo que use estas consultas hereda la regla. Una OV/SG con varias remisiones devuelve todas sus filas (sin manejo especial).

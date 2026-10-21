@@ -1,6 +1,7 @@
 package com.mx.liverpool.automatizacionbackend.service;
 
 import com.mx.liverpool.automatizacionbackend.constant.CancelacionAtgMkpConstant;
+import com.mx.liverpool.automatizacionbackend.model.ApvResult;
 import com.mx.liverpool.automatizacionbackend.model.AtgMarketplace;
 import com.mx.liverpool.automatizacionbackend.model.AvailabilityResult;
 import com.mx.liverpool.automatizacionbackend.model.AvailabilityRow;
@@ -506,6 +507,36 @@ public class ExcelService {
 
             workbook.write(out);
             log.info("Finalizando crearReporteAvailability");
+            return out.toByteArray();
+        }
+    }
+
+    public byte[] crearReporteApv(List<ApvResult> resultados) throws IOException {
+        log.info("Entrando a crearReporteApv con {} resultados", resultados.size());
+        try (Workbook workbook = new XSSFWorkbook();
+             ByteArrayOutputStream out = new ByteArrayOutputStream()) {
+
+            Sheet sheet = workbook.createSheet("APV");
+
+            Row header = sheet.createRow(0);
+            header.createCell(0).setCellValue("Remisión");
+            header.createCell(1).setCellValue("Resend");
+            header.createCell(2).setCellValue("JSON obtenido");
+            header.createCell(3).setCellValue("Respuesta fachada");
+            header.createCell(4).setCellValue("Errores");
+
+            int rowNum = 1;
+            for (ApvResult resultado : resultados) {
+                Row row = sheet.createRow(rowNum++);
+                row.createCell(0).setCellValue(truncarCelda(resultado.getRemision()));
+                row.createCell(1).setCellValue(truncarCelda(resultado.getResend()));
+                row.createCell(2).setCellValue(truncarCelda(resultado.getJson()));
+                row.createCell(3).setCellValue(truncarCelda(resultado.getFachada()));
+                row.createCell(4).setCellValue(truncarCelda(resultado.getError()));
+            }
+
+            workbook.write(out);
+            log.info("Finalizando crearReporteApv");
             return out.toByteArray();
         }
     }

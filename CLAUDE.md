@@ -35,7 +35,7 @@ Spring Boot 3.5 WAR app (Java 21, virtual threads enabled) targeting Liverpool's
 - `payload/` — request/response DTOs
 - `model/` — data models and row mappers
 
-## Data Sources (4 simultaneous)
+## Data Sources (5 simultaneous)
 
 All SQL queries are **externalized in `src/main/resources/queries.properties`** and injected via `@Value`. Never write inline SQL — add it to that file.
 
@@ -44,6 +44,7 @@ All SQL queries are **externalized in `src/main/resources/queries.properties`** 
 | `bridgeCoreDataSource` | Oracle `APPSPRO` (172.17.212.224) | Main e-commerce transactions |
 | `bridgeCoreQa2DataSource` | Oracle `APPSQ` (172.16.212.22) | QA environment |
 | `atgCoreDataSource` | Oracle `atgpro` (172.17.212.7) | ATG catalog / digital codes |
+| `apvDataSource` | Oracle `WLVPRO` (172.17.212.129) | `APPSALESMAN` order log (APV Sterling JSON) |
 | `sqliteDataSource` | Local `VyE.db` file | Transaction metrics cache |
 
 Inject the right template using `@Qualifier`. SQLite is the only writable local store; Oracle connections are read-only from this app's perspective.

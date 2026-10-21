@@ -85,7 +85,7 @@ public class ReprocesoController {
     @ApiResponse(responseCode = "200", description = "Archivo .xlsx (descarga) con el resultado del reproceso")
     @PostMapping(value = "/itemid-auto/procesar", consumes = {"multipart/form-data"})
     public ResponseEntity<?> procesarItemIdAuto(
-            @Parameter(description = "Archivo Excel (.xlsx/.xls) de dos columnas: A=JSON, B=TrackingNumber") @RequestParam("file") MultipartFile file) throws IOException {
+            @Parameter(description = "Archivo Excel (.xlsx/.xls) de dos columnas: A=JSON, B=remisión, orden de venta (98…) o shipping group (sg…)") @RequestParam("file") MultipartFile file) throws IOException {
         if (excelService.esArchivoNoExcel(file.getOriginalFilename())) throw new IllegalArgumentException("Tipo de archivo inválido. Solo se permiten archivos Excel.");
 
         HttpHeaders headers = new HttpHeaders();
@@ -202,7 +202,7 @@ public class ReprocesoController {
     @ApiResponse(responseCode = "200", description = "Archivo .xlsx (descarga) con el resultado del reproceso")
     @PostMapping(value = "/email/procesar", consumes = {"multipart/form-data"})
     public ResponseEntity<?> procesarEmail(
-            @Parameter(description = "Archivo Excel (.xlsx/.xls) de dos columnas: A=JSON, B=remisión") @RequestParam("file") MultipartFile file) throws IOException {
+            @Parameter(description = "Archivo Excel (.xlsx/.xls) de dos columnas: A=JSON, B=remisión, orden de venta (98…) o shipping group (sg…)") @RequestParam("file") MultipartFile file) throws IOException {
         if (excelService.esArchivoNoExcel(file.getOriginalFilename())) throw new IllegalArgumentException("Tipo de archivo inválido. Solo se permiten archivos Excel.");
 
         HttpHeaders headers = new HttpHeaders();
@@ -236,7 +236,7 @@ public class ReprocesoController {
     @ApiResponse(responseCode = "200", description = "Archivo .xlsx (descarga) con el resultado del reproceso")
     @PostMapping(value = "/firstname/procesar", consumes = {"multipart/form-data"})
     public ResponseEntity<?> procesarFirstName(
-            @Parameter(description = "Archivo Excel (.xlsx/.xls) de dos columnas: A=JSON, B=remisión") @RequestParam("file") MultipartFile file) throws IOException {
+            @Parameter(description = "Archivo Excel (.xlsx/.xls) de dos columnas: A=JSON, B=remisión, orden de venta (98…) o shipping group (sg…)") @RequestParam("file") MultipartFile file) throws IOException {
         if (excelService.esArchivoNoExcel(file.getOriginalFilename())) throw new IllegalArgumentException("Tipo de archivo inválido. Solo se permiten archivos Excel.");
 
         HttpHeaders headers = new HttpHeaders();
@@ -279,7 +279,7 @@ public class ReprocesoController {
     @ApiResponse(responseCode = "200", description = "Archivo .xlsx (descarga) con el resultado del reproceso")
     @PostMapping(value = "/completo/procesar", consumes = {"multipart/form-data"})
     public ResponseEntity<?> procesarCompleto(
-            @Parameter(description = "Archivo Excel (.xlsx/.xls) de dos columnas: A=JSON, B=remisión") @RequestParam("file") MultipartFile file) throws IOException {
+            @Parameter(description = "Archivo Excel (.xlsx/.xls) de dos columnas: A=JSON, B=remisión, orden de venta (98…) o shipping group (sg…)") @RequestParam("file") MultipartFile file) throws IOException {
         if (excelService.esArchivoNoExcel(file.getOriginalFilename())) throw new IllegalArgumentException("Tipo de archivo inválido. Solo se permiten archivos Excel.");
 
         HttpHeaders headers = new HttpHeaders();
@@ -308,7 +308,7 @@ public class ReprocesoController {
     @ApiResponse(responseCode = "200", description = "Archivo .xlsx (descarga) con el resultado del reproceso")
     @PostMapping(value = "/conditionvariable2/procesar", consumes = {"multipart/form-data"})
     public ResponseEntity<?> procesarConditionVariable2(
-            @Parameter(description = "Archivo Excel (.xlsx/.xls) de dos columnas: A=JSON, B=remisión") @RequestParam("file") MultipartFile file) throws IOException {
+            @Parameter(description = "Archivo Excel (.xlsx/.xls) de dos columnas: A=JSON, B=remisión, orden de venta (98…) o shipping group (sg…)") @RequestParam("file") MultipartFile file) throws IOException {
         if (excelService.esArchivoNoExcel(file.getOriginalFilename())) throw new IllegalArgumentException("Tipo de archivo inválido. Solo se permiten archivos Excel.");
 
         HttpHeaders headers = new HttpHeaders();

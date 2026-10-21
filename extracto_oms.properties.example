@@ -1,0 +1,4 @@
+# Copiar a extracto_oms.properties (junto a extracto_oms.sh) y llenar la contraseña. No versionar el real.
+oracle.url=jdbc:oracle:thin:@//172.17.212.224:1527/APPSPRO
+oracle.user=USR_VENTA_ENTREGA
+oracle.password=

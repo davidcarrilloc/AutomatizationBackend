@@ -18,6 +18,7 @@ public class MemoriaService {
     private final FachadaService fachadaService;
     private final StatusOmsService statusOmsService;
     private final ReenvioService reenvioService;
+    private final ApvService apvService;
 
     public Map<String, Object> liberar() {
         log.info("Entrando a liberar");
@@ -28,6 +29,7 @@ public class MemoriaService {
         liberados.put("fachada", fachadaService.liberarMemoria());
         liberados.put("fulfillmentTxt", statusOmsService.liberarMemoria());
         liberados.put("reenvio", reenvioService.liberarMemoria());
+        liberados.put("apv", apvService.liberarMemoria());
         log.info("Finalizando liberar: {}", liberados);
         return liberados;
     }

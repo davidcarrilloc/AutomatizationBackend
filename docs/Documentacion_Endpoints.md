@@ -218,7 +218,7 @@ desc: llena Item/LinePriceInfo/EMailID desde BRIDGECORE (`consulta.detalle-sku-r
   - Correo: CUSTOMER_EMAIL → toda llave exactamente `EMailID` a cualquier profundidad, solo si vacía; no crea llaves; no toca `ExtnPushEmailID`/`ExtnMKPEMail`. Si queda algún EMailID vacío → no envía.
   - Precedencia: Sin datos → descuadre → Sin correo → envío. No toca ExtnOfferID/Store/ShipNode.
   - Log: `BRIDGECORE devolvió N filas para la remisión X`.
-req: Excel A=JSON, B=remisión (tal cual, sin relleno).
+req: Excel A=JSON, B=remisión | orden venta (98…) | shipping group (sg…) (tal cual, sin relleno).
 res: 200 `Reporte_Reproceso_ItemId_Auto.xlsx`; cols extra solo si hubo descuadre. Response ∈ {`<resp I200>`, `No enviado: BC trae N SKUs y el JSON M OrderLines`, `Sin datos en BRIDGECORE`, `Sin correo en BRIDGECORE`, `"error": "…"`}.
 params: file:Excel:req
 impl: ReprocesoItemIdAutoService, RemisionRepository.obtenerDetalleSkuRemision, model DetalleSkuRemision
@@ -246,21 +246,21 @@ impl: ReprocesoCombinadoService
 
 ### POST /api/v1/reproceso/email/procesar
 desc: solo correo. CUSTOMER_EMAIL de BRIDGECORE (consulta de cliente TX+TIP+TX_CLIENTE, una por remisión, compartida con `/firstname`) → toda llave `EMailID` vacía a cualquier profundidad; no crea llaves; no toca `ExtnPushEmailID`/`ExtnMKPEMail`; resto del pedido intacto. EMailID vacío tras intento → no envía; pedido ya completo se envía aunque BC no traiga cliente.
-req: Excel A=JSON, B=remisión (tal cual).
+req: Excel A=JSON, B=remisión | orden venta (98…) | shipping group (sg…) (tal cual).
 res: 200 xlsx; Response ∈ {`<resp I200>`, `Sin datos en BRIDGECORE`, `Sin correo en BRIDGECORE`, `"error": "…"`}.
 params: file:Excel:req
 impl: ReprocesoEmailService
 
 ### POST /api/v1/reproceso/firstname/procesar
 desc: EMailID, FirstName, MiddleName, LastName desde TX_CLIENTE (CUSTOMER_EMAIL, NOMBRE_USUARIO). Toda llave con ese nombre exacto, cualquier profundidad (incl. PersonInfoContact), solo si vacía; no crea; no toca `ExtnPushEmailID`, `LExtnCustomerLastNameP/M`. NOMBRE_USUARIO se reparte por posición: 1ª palabra→FirstName, última→LastName, medio→MiddleName; 2 palabras ⇒ MiddleName intacto y se envía. Veto si queda vacío EMailID|FirstName|LastName (mira resultado, no fuente).
-req: Excel A=JSON, B=remisión (tal cual).
+req: Excel A=JSON, B=remisión | orden venta (98…) | shipping group (sg…) (tal cual).
 res: 200 `Reporte_Reproceso_FirstName.xlsx`; Response ∈ {`<resp I200>`, `Sin datos en BRIDGECORE`, `Sin datos en BRIDGECORE para: EMailID, FirstName, LastName`, `"error": "…"`}.
 params: file:Excel:req
 impl: ReprocesoFirstNameService
 
 ### POST /api/v1/reproceso/conditionvariable2/procesar
 desc: OrderLines[].OrderLine.ConditionVariable2 vacío/ausente ← PICK si TX_INFORMACION_PROCESADA.IS_CLICK_AND_COLLCT=Y, SHP si =N (vía `consulta.cliente-remision`). Crea la llave si no existe; valor propio se respeta; todo lleno ⇒ se envía tal cual. Tolera JSON con o sin llave `Order`.
-req: Excel A=JSON, B=remisión (tal cual).
+req: Excel A=JSON, B=remisión | orden venta (98…) | shipping group (sg…) (tal cual).
 res: 200 `Reporte_Reproceso_ConditionVariable2.xlsx`; Response ∈ {`<resp I200>`, `Sin datos en BRIDGECORE`, `Sin datos en BRIDGECORE para: ConditionVariable2`, `"error": "…"`}.
 params: file:Excel:req
 impl: ReprocesoConditionVariable2Service
@@ -281,7 +281,7 @@ desc: 6 correcciones en orden, 2 consultas BC por remisión distinta (detalle SK
   5. OrderLine.ConditionVariable2 vacío/ausente ← PICK (IS_CLICK_AND_COLLCT=Y) | SHP (=N); crea la llave — frena si queda vacío (flag ≠ Y/N o remisión sin BC) y se suma a `Sin datos en BRIDGECORE para: …`.
   6. ExtnGREventType >24 car. → primeros 24 (`ReprocesoGrEventTypeService.recortar`) — nunca frena.
   Sin ShipTo pero BillTo completo → SÍ envía (≠ `/billto`). Log: `BRIDGECORE devolvió N SKUs y M clientes para la remisión X`.
-req: Excel A=JSON, B=remisión (tal cual).
+req: Excel A=JSON, B=remisión | orden venta (98…) | shipping group (sg…) (tal cual).
 res: 200 `Reporte_Reproceso_Completo.xlsx`; Response ∈ {`Enviado (F001, Item, Correo, BillTo, ConditionVariable2, GREventType) | <resp>`, `Enviado (sin cambios) | <resp>`, `Enviado (F001, Correo, BillTo | sin Item: BC trae 3 SKUs y el JSON 2 OrderLines) | <resp>`, `Enviado (..., default Country="MX") | <resp>`, `No enviado. Sin datos en BRIDGECORE para: EMailID, LastName`, `No enviado. Falta: PersonInfoBillTo.State`, `"error": "…"`}.
 params: file:Excel:req
 impl: ReprocesoCompletoService
@@ -294,7 +294,7 @@ Misma lógica que `/reproceso/completo/procesar`, por jobId, una pasada sin paus
 
 ### POST /api/v1/reproceso/completo/async
 desc: inicia job.
-req: multipart Excel A=JSON, B=remisión.
+req: multipart Excel A=JSON, B=remisión | orden venta (98…) | shipping group (sg…).
 res: 202 + EstatusFulfillment.
 params: file:Excel:req
 
@@ -342,21 +342,21 @@ impl: ValidadorService.extraerMarketplace, ExcelService.leerMarketplace/crearRep
 
 ### POST /api/v1/consulta-bc/trackingnumber
 desc: TX no enviadas a OMS (`id_cat_estatus=0`, `id_tipo_tx=1`) de lista de remisiones, BRIDGECORE tx+tx_informacion_procesada. Lotes de 1000 (límite `IN` Oracle), concatenados en orden. Síncrono. Equivale a `___todo_BC_by_REMISIONremtypemkp_nooms_____.xlsx`.
-req: multipart Excel 1 col A=remisiones (encabezado inocuo).
+req: multipart .txt 1 remisión por línea (trim, vacías ignoradas).
 res: 200 xlsx hoja `Result`, 46 cols: REMISION, ATG_ORDER_ID, ATG_SHIP_GRP_ID, FECHA_TX_COMPRA, TOTAL_COBRADO, REM_TYPE_GR, IS_MKP, resto de TIP. Sin filas ⇒ celda `Sin resultados`.
-params: file:Excel:req
+params: file:TXT:req
 
 ### POST /api/v1/consulta-bc/trackingnumber/orden-venta
 desc: igual que `/trackingnumber` pero filtra por `tip.orden_venta`. Lotes de 1000. Síncrono.
-req: multipart Excel 1 col A=órdenes de venta.
+req: multipart .txt 1 orden de venta por línea (trim, vacías ignoradas).
 res: 200 xlsx `Reporte_BC_OrdenVenta.xlsx`, mismas 46 cols que `/trackingnumber`.
-params: file:Excel:req
+params: file:TXT:req
 
 ### POST /api/v1/consulta-bc/trackingnumber/shipping-group
 desc: igual que `/trackingnumber` pero filtra por `tip.atg_ship_grp_id`. Lotes de 1000. Síncrono.
-req: multipart Excel 1 col A=shipping groups ATG.
+req: multipart .txt 1 shipping group ATG por línea (trim, vacías ignoradas).
 res: 200 xlsx `Reporte_BC_ShippingGroup.xlsx`, mismas 46 cols que `/trackingnumber`.
-params: file:Excel:req
+params: file:TXT:req
 
 ---
 
@@ -494,11 +494,41 @@ params: fechaInicio:date yyyy-MM-dd:opt — inclusivo; sin él, desde el inicio 
 
 ---
 
+## APV `/api/v1/apv` · ApvController → ApvService, ApvRepository (executor `statusOmsExecutor`)
+
+Flujo del job: 1 resend `POST {apv.resend.base-url}/resendSterlingRemissions` (multipart `fileRemissions` = TXT en memoria, una remisión por línea, todas juntas) → 2 consultas por corrida (lotes de 1000 por el `IN`): `APPSALESMAN.LOG_ORDER` con todas las remisiones (TRANSACTION_ID más reciente por ORDER_NUMBER) → `APPSALESMAN.LOG_ORDER_AUDIT` con esas transacciones (STERLING_RAW_REQUEST_JSON); empate en memoria remisión → transacción → JSON → por remisión `ReprocesoService.enviar` (I200 pass-through). Datasource `apvDataSource` (WLVPRO). Config `apv.*`. Remisión tal cual, sin relleno a 10 dígitos.
+
+### POST /api/v1/apv/reproceso
+desc: inicia el job. Sin pausa entre filas. Error de fachada ⇒ pausa 3 s, difiere al final, hasta 3 rondas (reenvía el JSON ya cargado, sin reconsultar). Sin TRANSACTION_ID o sin JSON ⇒ error definitivo, sin pausa ni reintento. Consulta Oracle fallida ⇒ todas las filas con ese error, no se envía nada. Resend fallido no aborta: se anota y sigue.
+req: multipart Excel .xlsx A=remisión (celdas no numéricas se omiten; sin remisiones ⇒ 400).
+res: 202 + jobId (EstatusFulfillment).
+params: file:Excel:req
+
+### GET /api/v1/apv/reproceso/estatus/{jobId}
+desc: estatus. `conErrorGateway` = filas que terminaron con error; `reprocesados` = filas recuperadas en una ronda.
+req: jobId.
+res: 200 EstatusFulfillment. COMPLETADO_CON_ERRORES si alguna fila o el resend falló.
+params: jobId:string(path):req
+
+### GET /api/v1/apv/reproceso/jobs
+desc: lista jobs.
+req: nada.
+res: 200 lista.
+params: —
+
+### GET /api/v1/apv/reproceso/excel/{jobId}
+desc: descarga; vacío hasta que el job termina (sin descarga parcial).
+req: jobId.
+res: 200 `Reporte_APV_{jobId}.xlsx` Remisión | Resend | JSON obtenido | Respuesta fachada | Errores. Resend = misma respuesta de ccenter en todas las filas (o `"error": "…"`). Errores ∈ {`"error": "Sin TRANSACTION_ID en LOG_ORDER"`, `"error": "Sin STERLING_RAW_REQUEST_JSON para la transacción <id>"`, `"error": "<msg>"[, "body": …]`}; con error de fachada el JSON obtenido se conserva y Respuesta fachada va vacía.
+params: jobId:string(path):req
+
+---
+
 ## Memoria `/api/v1/memoria` · MemoriaController → MemoriaService
 
 ### POST /api/v1/memoria/liberar
-desc: vacía `estatusPorJob`/`resultadosPorJob` de FulfillmentService, ReprocesoCompletoAsyncService, AvailabilityService, FachadaService, StatusOmsService; Reenvío ⇒ detiene sin `join`, `SIN_INICIAR`, `/ejecutar` puede arrancar. Jobs vivos lanzan `CancellationException` en su siguiente iteración; encolados salen al arrancar. SQLite intacto. Llamada HTTP colgada sigue ocupando su hilo.
+desc: vacía `estatusPorJob`/`resultadosPorJob` de FulfillmentService, ReprocesoCompletoAsyncService, AvailabilityService, FachadaService, StatusOmsService, ApvService; Reenvío ⇒ detiene sin `join`, `SIN_INICIAR`, `/ejecutar` puede arrancar. Jobs vivos lanzan `CancellationException` en su siguiente iteración; encolados salen al arrancar. SQLite intacto. Llamada HTTP colgada sigue ocupando su hilo.
 req: nada.
-res: 200 {fulfillment, reprocesoCompleto, availability, fachada, fulfillmentTxt: int jobs liberados, reenvio: EstatusReenvio}.
+res: 200 {fulfillment, reprocesoCompleto, availability, fachada, fulfillmentTxt, apv: int jobs liberados, reenvio: EstatusReenvio}.
 params: —
 impl: `liberarMemoria()` + `verificarVigente(jobId)` en cada servicio; ReenvioService.esVigente (hiloCorrida)
