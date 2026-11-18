@@ -30,7 +30,8 @@ public class ReprocesoCompletoController {
             description = "Recibe un Excel de dos columnas (A: JSON del pedido, B: remisión) e inicia un reproceso asíncrono. " +
                     "Aplica las mismas correcciones que /completo/procesar (F001→001, Item y precios, EMailID/nombres y " +
                     "PersonInfoBillTo desde BRIDGECORE, ConditionVariable2 PICK/SHP según IS_CLICK_AND_COLLCT, " +
-                    "ExtnGREventType recortado a 24 caracteres) y envía cada orden al servicio I200 en una sola pasada, sin pausas " +
+                    "ExtnGREventType recortado a 24 caracteres) y envía cada orden al servicio I200 (o a /oms/v2/int/200 si la " +
+                    "remisión inicia con 98) en una sola pasada, sin pausas " +
                     "largas entre envíos. La fila con error de gateway (500/504) se difiere al final y se reintenta hasta " +
                     "reproceso.completo.max-rondas. Devuelve un jobId para consultar estatus y descargar resultados.")
     @ApiResponse(responseCode = "202", description = "Reproceso aceptado; devuelve el jobId y su estatus")

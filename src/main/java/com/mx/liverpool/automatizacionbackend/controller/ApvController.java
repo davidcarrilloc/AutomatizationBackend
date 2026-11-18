@@ -30,7 +30,7 @@ public class ApvController {
             description = "Recibe un Excel con las remisiones en la columna A (las celdas no numéricas se omiten) e inicia un " +
                     "reproceso asíncrono: manda todas las remisiones en un TXT al resend de Sterling, rescata con dos " +
                     "consultas el STERLING_RAW_REQUEST_JSON de todas en APPSALESMAN y envía cada uno tal cual a la fachada " +
-                    "I200. La remisión con error de fachada espera 3 s, se difiere al final y se reintenta hasta 3 rondas; " +
+                    "I200 (o a /oms/v2/int/200 si la remisión inicia con 98). La remisión con error de fachada espera 3 s, se difiere al final y se reintenta hasta 3 rondas; " +
                     "la que no trae JSON queda con error sin reintento. Devuelve un jobId para consultar estatus y resultados.")
     @ApiResponse(responseCode = "202", description = "Reproceso aceptado; devuelve el jobId")
     @PostMapping(value = "/reproceso", consumes = {"multipart/form-data"})

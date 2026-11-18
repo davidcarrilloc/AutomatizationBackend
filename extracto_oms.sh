@@ -3,11 +3,9 @@
 # extracto_oms.sh — Extracto BC -> carpetas locales.
 #
 # Reproduce el módulo del backend SIN levantarlo: consulta Oracle sobre el DÍA ANTERIOR completo y deja,
-# junto a este script:
-#   liverpool/lp_sl_<yyyyMMdd>.csv    = remisiones Liverpool SoftLine (BRIDGECORE, tipo '1')
-#   liverpool/lp_bt_<yyyyMMdd>.csv    = órdenes de venta Liverpool Big Ticket (BRIDGECORE, tipo '0')
-#   suburbia/sbb_sl_<yyyyMMdd>.csv    = shipping groups Suburbia SoftLine (BRIDGECORE2, tipo '1')
-#   suburbia/sbb_bt_<yyyyMMdd>.csv    = shipping groups Suburbia Big Ticket (BRIDGECORE2, tipo '0')
+# en la carpeta oms/ junto a este script:
+#   oms/oms_sl_<yyyyMMdd>.csv = remisiones Liverpool SoftLine (BRIDGECORE, tipo '1') + shipping groups Suburbia (BRIDGECORE2, tipos '0' y '1')
+#   oms/oms_bt_<yyyyMMdd>.csv = órdenes de venta Liverpool Big Ticket (BRIDGECORE, tipo '0')
 #
 # El SQL y el driver Oracle viven en extracto-oms.jar (fuente: extracto-oms/Extractor.java).
 # Credenciales en extracto_oms.properties junto al script (copiar de extracto_oms.properties.example).
@@ -18,7 +16,7 @@
 #   ./extracto_oms.sh 20260921     # procesa un día específico (YYYYMMDD)
 #   DRY_RUN=1 ./extracto_oms.sh    # muestra fecha/ventana/archivos y sale, sin tocar Oracle
 #
-# Salida: 0 = los 4 archivos generados; 1 = alguna consulta o la conexión falló (su archivo no se crea).
+# Salida: 0 = los 2 archivos generados; 1 = alguna consulta o la conexión falló (su archivo no se crea).
 #
 set -euo pipefail
 
@@ -26,6 +24,7 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 JAR="$SCRIPT_DIR/extracto-oms.jar"
 PROPS="$SCRIPT_DIR/extracto_oms.properties"
+OUT_DIR="$SCRIPT_DIR/oms"
 
 # ----- Fecha: sin argumento = ayer; con argumento YYYYMMDD = ese día -----
 if [ "${1:-}" = "" ]; then
@@ -48,11 +47,9 @@ echo "[extracto-oms] dia=$FECHA sello=$SELLO ventana=[$INICIO .. $FIN]"
 
 # ----- DRY_RUN: solo el plan, sin Oracle -----
 if [ "${DRY_RUN:-0}" = "1" ]; then
-  echo "[extracto-oms] DRY_RUN: generaría en $SCRIPT_DIR:"
-  for f in "liverpool/lp_sl_$SELLO.csv" "liverpool/lp_bt_$SELLO.csv" \
-           "suburbia/sbb_sl_$SELLO.csv" "suburbia/sbb_bt_$SELLO.csv"; do
-    echo "  $f"
-  done
+  echo "[extracto-oms] DRY_RUN: generaría:"
+  echo "  $OUT_DIR/oms_sl_$SELLO.csv"
+  echo "  $OUT_DIR/oms_bt_$SELLO.csv"
   exit 0
 fi
 
@@ -61,7 +58,7 @@ fi
 [ -f "$PROPS" ] || { echo "No se encontró $PROPS (copiar de extracto_oms.properties.example)." >&2; exit 3; }
 command -v java >/dev/null 2>&1 || { echo "Falta 'java' (JRE >= 8) en el PATH." >&2; exit 3; }
 
-# ----- Corre las consultas y escribe los CSV en las carpetas -----
-java -cp "$JAR" Extractor "$PROPS" "$INICIO" "$FIN" "$SELLO" "$SCRIPT_DIR"
+# ----- Corre las consultas y escribe los CSV en oms/ -----
+java -cp "$JAR" Extractor "$PROPS" "$INICIO" "$FIN" "$SELLO" "$OUT_DIR"
 
 echo "[extracto-oms] listo."

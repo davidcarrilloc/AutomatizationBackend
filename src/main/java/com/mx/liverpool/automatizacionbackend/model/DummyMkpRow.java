@@ -1,13 +1,15 @@
 package com.mx.liverpool.automatizacionbackend.model;
 
+import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
+import lombok.NoArgsConstructor;
 
 @Data
+@NoArgsConstructor
 @Builder
-public class Dummy {
+@AllArgsConstructor
+public class DummyMkpRow {
     private String remision;
     private String offerId;
-    private String leadTime;
-    private String sku;
 }

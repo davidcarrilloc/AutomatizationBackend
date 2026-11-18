@@ -195,10 +195,11 @@ public class FachadaService {
             return construirResultado(json, tracking, "\"error\": \"JSON inválido: " + e.getMessage() + "\"");
         }
 
-        log.info("Enviando a la fachada el tracking {}", tracking);
+        String ruta = ReprocesoService.rutaDestino(tracking);
+        log.info("Enviando a la fachada el tracking {} a {}", tracking, ruta);
         try {
             String response = webClient.post()
-                    .uri("/oms/sl/I200?origen=ecom")
+                    .uri(ruta)
                     .contentType(MediaType.APPLICATION_JSON)
                     .bodyValue(json)
                     .retrieve()

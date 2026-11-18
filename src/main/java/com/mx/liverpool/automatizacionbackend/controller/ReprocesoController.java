@@ -30,7 +30,8 @@ import java.io.IOException;
 @CrossOrigin(origins = "*")
 @RequiredArgsConstructor
 @Log4j2
-@Tag(name = "Reproceso", description = "Reenvío masivo de órdenes al servicio I200 (Apigee) a partir de un Excel")
+@Tag(name = "Reproceso", description = "Reenvío masivo de órdenes al servicio I200 (Apigee) a partir de un Excel; " +
+        "la remisión que inicia con 98 se envía a /oms/v2/int/200 en lugar de I200")
 public class ReprocesoController {
     private final ReprocesoItemIdService reprocesoItemIdService;
     private final ReprocesoItemIdAutoService reprocesoItemIdAutoService;

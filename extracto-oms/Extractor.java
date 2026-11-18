@@ -12,25 +12,23 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Properties;
 
-// Fuente de extracto-oms.jar. SQL copiado de consulta.extracto-bc-* (queries.properties); SBB partido por tipo de artículo.
+// Fuente de extracto-oms.jar. SQL copiado de consulta.extracto-bc-* (queries.properties); oms_sl = LP SL + SBB, oms_bt = LP BT.
 // Compilar: javac --release 8 Extractor.java && jar uf ../extracto-oms.jar Extractor.class
 public class Extractor {
 
     static final String SQL_LP_SL = "SELECT tip.remision FROM BRIDGECORE.tx_informacion_procesada tip INNER JOIN BRIDGECORE.tx tx ON tip.id = tx.id_info_procesada WHERE tx.id_tipo_articulo = '1' AND tip.id_cat_estatus = 0 AND tx.id_tipo_tx = 1 AND tip.atg_ship_grp_id IS NOT NULL AND tip.atg_order_id IS NOT NULL AND tip.remision IS NOT NULL AND tip.total_cobrado > 0 AND tip.is_click_and_collct = 'N' AND tip.rem_type_gr <> '2' AND tip.FECHA_TX_COMPRA BETWEEN ? AND ? ORDER BY tip.FECHA_TX_COMPRA ASC";
     static final String SQL_LP_BT = "SELECT tip.orden_venta FROM BRIDGECORE.tx_informacion_procesada tip INNER JOIN BRIDGECORE.tx tx ON tip.id = tx.id_info_procesada WHERE tx.id_tipo_articulo = '0' AND tip.id_cat_estatus = 0 AND tx.id_tipo_tx = 1 AND tip.atg_ship_grp_id IS NOT NULL AND tip.atg_order_id IS NOT NULL AND tip.orden_venta IS NOT NULL AND tip.total_cobrado > 0 AND tip.is_click_and_collct = 'N' AND tip.rem_type_gr <> '2' AND tip.FECHA_TX_COMPRA BETWEEN ? AND ? ORDER BY tip.FECHA_TX_COMPRA ASC";
-    static final String SQL_SBB = "SELECT tip.atg_ship_grp_id FROM BRIDGECORE2.tx_informacion_procesada tip INNER JOIN BRIDGECORE2.tx tx ON tip.id = tx.id_info_procesada WHERE tx.id_tipo_articulo = '%s' AND tip.id_cat_estatus = 0 AND tx.id_tipo_tx = 1 AND tip.atg_ship_grp_id IS NOT NULL AND tip.atg_order_id IS NOT NULL AND tip.total_cobrado > 0 AND tip.FECHA_TX_COMPRA BETWEEN ? AND ? ORDER BY tip.FECHA_TX_COMPRA ASC";
+    static final String SQL_SBB = "SELECT tip.atg_ship_grp_id FROM BRIDGECORE2.tx_informacion_procesada tip INNER JOIN BRIDGECORE2.tx tx ON tip.id = tx.id_info_procesada WHERE tx.id_tipo_articulo IN ('0', '1') AND tip.id_cat_estatus = 0 AND tx.id_tipo_tx = 1 AND tip.atg_ship_grp_id IS NOT NULL AND tip.atg_order_id IS NOT NULL AND tip.total_cobrado > 0 AND tip.FECHA_TX_COMPRA BETWEEN ? AND ? ORDER BY tip.FECHA_TX_COMPRA ASC";
 
-    // {carpeta, prefijo, sql}
+    // {prefijo, sql...}: las filas de cada sql se concatenan en un solo archivo
     static final String[][] SALIDAS = {
-            {"liverpool", "lp_sl", SQL_LP_SL},
-            {"liverpool", "lp_bt", SQL_LP_BT},
-            {"suburbia", "sbb_sl", String.format(SQL_SBB, "1")},
-            {"suburbia", "sbb_bt", String.format(SQL_SBB, "0")},
+            {"oms_sl", SQL_LP_SL, SQL_SBB},
+            {"oms_bt", SQL_LP_BT},
     };
 
     public static void main(String[] args) throws Exception {
         if (args.length != 5) {
-            System.err.println("Uso: Extractor <properties> <inicio 'yyyy-MM-dd HH:mm:ss'> <fin> <sello yyyyMMdd> <baseDir>");
+            System.err.println("Uso: Extractor <properties> <inicio 'yyyy-MM-dd HH:mm:ss'> <fin> <sello yyyyMMdd> <dirSalida>");
             System.exit(2);
         }
         Properties props = new Properties();
@@ -52,10 +50,13 @@ public class Extractor {
         boolean fallo = false;
         try (Connection conn = DriverManager.getConnection(url, user, pass)) {
             for (String[] salida : SALIDAS) {
-                String nombre = salida[0] + "/" + salida[1] + "_" + sello + ".csv";
+                String nombre = salida[0] + "_" + sello + ".csv";
                 try {
-                    List<String> filas = consultar(conn, salida[2], inicio, fin);
-                    escribir(base.resolve(salida[0]), salida[1] + "_" + sello + ".csv", filas);
+                    List<String> filas = new ArrayList<>();
+                    for (int i = 1; i < salida.length; i++) {
+                        filas.addAll(consultar(conn, salida[i], inicio, fin));
+                    }
+                    escribir(base, nombre, filas);
                     System.out.println(nombre + ": " + filas.size());
                 } catch (Exception e) {
                     System.out.println(nombre + ": Error: " + e.getMessage());

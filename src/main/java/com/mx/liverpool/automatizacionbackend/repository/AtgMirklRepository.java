@@ -17,17 +17,14 @@ import java.util.Map;
 public class AtgMirklRepository {
     private final NamedParameterJdbcTemplate namedParameterJdbcTemplate;
     private final String consultaCobroExistenciaOfferId;
-    private final String consultaBridgecoreDevolucionApv;
     private final String consultaHrd;
 
     @Autowired
     public AtgMirklRepository(@Qualifier("atgCoreDataSource") DataSource namedParameterJdbcTemplate,
                               @Value("${consulta.check-existencia-offerId}") String consultaCobroExistenciaOfferId,
-                              @Value("${consulta.consulta-bridgecore-devolucion-apv}") String consultaBridgecoreDevolucionApv,
                               @Value("${consulta.hrd}") String consultaHrd) {
         this.namedParameterJdbcTemplate = new NamedParameterJdbcTemplate(namedParameterJdbcTemplate);
         this.consultaCobroExistenciaOfferId = consultaCobroExistenciaOfferId;
-        this.consultaBridgecoreDevolucionApv = consultaBridgecoreDevolucionApv;
         this.consultaHrd = consultaHrd;
     }
 
@@ -39,17 +36,6 @@ public class AtgMirklRepository {
                 consultaCobroExistenciaOfferId,
                 params,
                 new BeanPropertyRowMapper<>(OfferId.class)
-        );
-    }
-
-    public List<AtgMarketplace> obtenerDatosBridgecoreDevolucionApv(List<String> remisiones) {
-        Map<String, Object> params = new HashMap<>();
-        params.put("remisiones", remisiones);
-
-        return namedParameterJdbcTemplate.query(
-                consultaBridgecoreDevolucionApv,
-                params,
-                new BeanPropertyRowMapper<>(AtgMarketplace.class)
         );
     }
 

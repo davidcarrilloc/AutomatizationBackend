@@ -1,11 +1,10 @@
 package com.mx.liverpool.automatizacionbackend.service;
 
-import com.mx.liverpool.automatizacionbackend.constant.CancelacionAtgMkpConstant;
 import com.mx.liverpool.automatizacionbackend.model.ApvResult;
-import com.mx.liverpool.automatizacionbackend.model.AtgMarketplace;
 import com.mx.liverpool.automatizacionbackend.model.AvailabilityResult;
 import com.mx.liverpool.automatizacionbackend.model.AvailabilityRow;
-import com.mx.liverpool.automatizacionbackend.model.Dummy;
+import com.mx.liverpool.automatizacionbackend.model.DummyMkpResult;
+import com.mx.liverpool.automatizacionbackend.model.DummyMkpRow;
 import com.mx.liverpool.automatizacionbackend.model.FulfillmentResult;
 import com.mx.liverpool.automatizacionbackend.model.ComparativaTx;
 import com.mx.liverpool.automatizacionbackend.model.MarketplaceResult;
@@ -44,6 +43,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Path;
 import java.util.*;
 import java.util.function.Function;
 
@@ -740,85 +740,81 @@ public class ExcelService {
         row.createCell(columna).setCellValue(truncarCelda(valor == null ? "" : valor.toString()));
     }
 
-    public String crearReporteCancelacion(List<Dummy> dummies, List<AtgMarketplace> atgMarketplaces) {
-        String excelId = "";
-        for (Dummy dummy : dummies) {
-            AtgMarketplace marketplace = atgMarketplaces.stream()
-                    .filter(m -> m.getRemision().equals(dummy.getRemision()))
-                    .findFirst()
-                    .orElseThrow(() -> new IllegalStateException("No se encontraron datos de Bridgecore para la remisión: " + dummy.getRemision()));
-        }
+    public List<DummyMkpRow> leerDummyMkp(MultipartFile file) {
+        log.info("Entrando a leerDummyMkp");
+        List<DummyMkpRow> filas = new ArrayList<>();
 
-        Workbook workbook = new XSSFWorkbook();
-        Sheet sheet = workbook.createSheet("Cancelaciones");
-
-        Row headerRow = sheet.createRow(0);
-        int cellIndex = 0;
-        for (CancelacionAtgMkpConstant constant : CancelacionAtgMkpConstant.values()) {
-            if (CancelacionAtgMkpConstant.DECODE == constant) {
-                headerRow.createCell(9).setCellValue(constant.getValues()[0]); cellIndex++;
-                headerRow.createCell(10).setCellValue(constant.getValues()[2]); cellIndex++;
-                headerRow.createCell(11).setCellValue(constant.getValues()[4]); cellIndex++;
-                headerRow.createCell(12).setCellValue(constant.getValues()[6]); cellIndex++;
-
-                headerRow.createCell(15).setCellValue(constant.getValues()[8]);
-                headerRow.createCell(16).setCellValue(constant.getValues()[10]);
-                headerRow.createCell(21).setCellValue(constant.getValues()[12]);
-
-                headerRow.createCell(70).setCellValue(constant.getValues()[14]);
-                headerRow.createCell(71).setCellValue(constant.getValues()[16]);
-                headerRow.createCell(72).setCellValue(constant.getValues()[18]);
-
-                headerRow.createCell(75).setCellValue(constant.getValues()[20]);
-                headerRow.createCell(76).setCellValue(constant.getValues()[22]);
-                headerRow.createCell(77).setCellValue(constant.getValues()[24]);
-                continue;
+        try (InputStream is = file.getInputStream();
+             Workbook workbook = new XSSFWorkbook(is)) {
+            Sheet sheet = workbook.getSheetAt(0);
+            for (Row row : sheet) {
+                String remision = leerCelda(row, 0);
+                // Se omiten encabezados o filas vacías; la fila sin offerId se conserva para reportarla como "no aplica".
+                if (!remision.matches("\\d+")) continue;
+                filas.add(DummyMkpRow.builder()
+                        .remision(remision)
+                        .offerId(leerCelda(row, 1))
+                        .build());
             }
-
-            if (cellIndex == 15) {
-                cellIndex++; cellIndex++;
-                continue;
-            }
-
-            if (cellIndex == 21) {
-                cellIndex++;
-                continue;
-            }
-
-            if (cellIndex == 70 || cellIndex == 75) {
-                cellIndex++; cellIndex++; cellIndex++;
-                continue;
-            }
-
-            headerRow.createCell(cellIndex).setCellValue(constant.name()); cellIndex++;
-        }
-
-        int rowNum = 1;
-        for (CancelacionAtgMkpConstant constant : CancelacionAtgMkpConstant.values()) {
-            Row row = sheet.createRow(rowNum++);
-            row.createCell(0).setCellValue(constant.name());
-
-            break;
-            // String valor = String.join(" | ", constant.getValues());
-            // row.createCell(1).setCellValue(valor);
-        }
-
-        String generadorId = String.valueOf(System.currentTimeMillis());
-        String fileName = "ReporteCancelacion_" + generadorId + ".xlsx";
-        try (FileOutputStream fileOut = new FileOutputStream(fileName)) {
-            workbook.write(fileOut);
-            excelId = fileName;
-            log.info("Excel creado exitosamente con el nombre: {}", fileName);
         } catch (IOException e) {
-            e.printStackTrace();
-        } finally {
-            try {
-                workbook.close();
-            } catch (IOException e) {
-                e.printStackTrace();
-            }
+            throw new RuntimeException("Error al leer el Excel de dummies: " + e.getMessage());
         }
 
-        return excelId;
+        log.info("Finalizando leerDummyMkp con {} filas", filas.size());
+        return filas;
+    }
+
+    public byte[] crearReporteDummyMkp(List<DummyMkpResult> resultados) throws IOException {
+        log.info("Entrando a crearReporteDummyMkp con {} resultados", resultados.size());
+        try (Workbook workbook = new XSSFWorkbook();
+             ByteArrayOutputStream out = new ByteArrayOutputStream()) {
+
+            Sheet sheet = workbook.createSheet("Dummies");
+            List<String> encabezados = List.of("Remisión", "OfferId", "Error", "ORDER_ID", "SHIPPING_GROUP_ID", "SKU",
+                    "Cantidad", "Total", "Archivo JSON", "Respuesta envío", "Respuesta cancelación");
+            Row header = sheet.createRow(0);
+            for (int i = 0; i < encabezados.size(); i++) header.createCell(i).setCellValue(encabezados.get(i));
+
+            int rowNum = 1;
+            for (DummyMkpResult r : resultados) {
+                Row row = sheet.createRow(rowNum++);
+                escribirCelda(row, 0, r.getRemision());
+                escribirCelda(row, 1, r.getOfferId());
+                escribirCelda(row, 2, r.getError());
+                escribirCelda(row, 3, r.getOrderId());
+                escribirCelda(row, 4, r.getShippingGroupId());
+                escribirCelda(row, 5, r.getSku());
+                escribirCelda(row, 6, r.getCantidad());
+                escribirCelda(row, 7, r.getTotal());
+                escribirCelda(row, 8, r.getArchivoJson());
+                escribirCelda(row, 9, r.getRespuestaEnvio());
+                escribirCelda(row, 10, r.getRespuestaCancelacion());
+            }
+
+            workbook.write(out);
+            log.info("Finalizando crearReporteDummyMkp");
+            return out.toByteArray();
+        }
+    }
+
+    /** Excel de depuración con las filas dummy armadas, mismo encabezado que la plantilla. */
+    public void escribirDummies(Path archivo, List<String> encabezado, List<Map<String, String>> filas) throws IOException {
+        log.info("Entrando a escribirDummies con {} filas en {}", filas.size(), archivo);
+        try (Workbook workbook = new XSSFWorkbook();
+             FileOutputStream out = new FileOutputStream(archivo.toFile())) {
+
+            Sheet sheet = workbook.createSheet("Exportar Hoja de Trabajo");
+            Row header = sheet.createRow(0);
+            for (int i = 0; i < encabezado.size(); i++) header.createCell(i).setCellValue(encabezado.get(i));
+
+            int rowNum = 1;
+            for (Map<String, String> fila : filas) {
+                Row row = sheet.createRow(rowNum++);
+                for (int i = 0; i < encabezado.size(); i++) escribirCelda(row, i, fila.get(encabezado.get(i)));
+            }
+
+            workbook.write(out);
+        }
+        log.info("Finalizando escribirDummies");
     }
 }

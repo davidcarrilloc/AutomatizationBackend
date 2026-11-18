@@ -10,6 +10,7 @@ GLOBAL
 - Jobs `jobId`: estado en memoria (`ConcurrentHashMap`), se pierde al reiniciar. estatus ∈ {EN_PROCESO, COMPLETADO, COMPLETADO_CON_ERRORES}. `/jobs` ordena más reciente→más viejo; `fin=null` si corre. jobId inexistente → 400.
 - `EstatusFulfillment` = {jobId, estatus, totalTrackings, procesados, conErrorGateway, reprocesados, trackingActual, inicio, fin}.
 - Ritmo I200 síncrono (`ReprocesoService`): 250 ms entre envíos, 1 s cada 25.
+- Destino I200: tracking/remisión (col B; en APV la col A) que inicia con `98` → `/oms/v2/int/200` (mismo host y apikey, sin `origen`); resto → `/oms/sl/I200?origen=ecom`. Aplica a /fachada, /reproceso/*, /reproceso/completo/async y /apv. impl: `ReprocesoService.rutaDestino`.
 - "vacío" en reprocesos = llave con `null` | `""` | solo espacios. Llave ausente no se crea salvo que se diga.
 - Tracking/remisión: se rellena a 10 dígitos SOLO contra OGCP (fulfillment, fulfillment-txt, availability). Contra BRIDGECORE va tal cual, bind `Types.VARCHAR`.
 
@@ -28,12 +29,6 @@ desc: igual que APV, dir ATG.
 req: multipart CSV.
 res: 200, salida del script.
 params: file:CSV:req
-
-### POST /api/v1/upload/cancelacionDevolucionMkpAtg
-desc: cancelaciones/devoluciones MKP ATG desde Excel (cols 0,1,2,7).
-req: multipart Excel.
-res: 200, resultado del proceso.
-params: file:Excel:req
 
 ### POST /api/v1/upload/codigosDigitales
 desc: códigos digitales (ATG) de los ids en col A.
@@ -390,6 +385,36 @@ params: jobId:string(path):req
 
 ---
 
+## Dummy MKP `/api/v1/dummy-mkp` · DummyMkpController → DummyMkpService, RemisionRepository (executor `statusOmsExecutor`)
+
+Pipeline por fila. Fase 1 (armar): sin offerId ⇒ "No aplica: falta offerId"; `consulta.dummy-mkp-bridgecore` (bridgeCoreDataSource, remisión tal cual) ⇒ 1 fila dummy + 1 JSON por SKU sobre `resources/dummy/plantilla-dummy.xlsx`. Reemplaza ORDER_ID←atg_order_id, SHIPPING_GROUP_ID←atg_ship_grp_id, ID_CYBERSOURCE←fms_trx_id, SOMS_REMISSION←remisión 10 dígitos, QUANTITY←sk.cantidad, BRIDGECORE_SKU_AMOUNT←dms.total, SKU←sk.sku_id, OFFERID←Excel, OFFER_PRICE←dms.total; resto = plantilla. Salida en `dummy-mkp.directorio-salida/<jobId>/`: `dummies_<jobId>.xlsx` + `jsons/<remision>_<sku>.json` (estructura de `transform_to_json` del antiguo crea_json_vendor.py; todo valor pasa por `limpiarTexto`: NBSP/espacios Unicode/control → espacio, invisibles `\p{Cf}` fuera, `strip()`). Fase 2: `POST dummy-mkp.oms.base-url/api/ordermanagement/orders/` (header apikey) y si 2xx `PUT …/orders/{commercial_id}/cancel`. Solo 2xx = éxito, sin reintentos (no duplicar orden creada); envío fallido ⇒ no cancela. Pausa `dummy-mkp.pausa-lote-ms` (10 s) cada `dummy-mkp.tamano-lote` (50) envíos.
+
+### POST /api/v1/dummy-mkp/dummies
+desc: crea carpeta del job (falla en la petición si no puede) y encola el pipeline.
+req: multipart Excel A=remisión, B=offerId (filas con A no numérica se omiten; sin B se reportan).
+res: 202 EstatusFulfillment con jobId.
+params: file:Excel:req
+
+### GET /api/v1/dummy-mkp/dummies/estatus/{jobId}
+desc: estatus. Fase armar: totalTrackings=filas del Excel, trackingActual=`armando <rem>`; fase envío: totalTrackings=dummies a enviar, trackingActual=`enviando <rem>`. conErrorGateway=filas con error; reprocesados=0.
+req: jobId.
+res: 200 EstatusFulfillment.
+params: jobId:string(path):req
+
+### GET /api/v1/dummy-mkp/dummies/jobs
+desc: lista jobs.
+req: nada.
+res: 200 lista.
+params: —
+
+### GET /api/v1/dummy-mkp/dummies/excel/{jobId}
+desc: descarga; parcial mientras corre.
+req: jobId.
+res: 200 `Reporte_Dummies_{jobId}.xlsx` Remisión | OfferId | Error | ORDER_ID | SHIPPING_GROUP_ID | SKU | Cantidad | Total | Archivo JSON | Respuesta envío | Respuesta cancelación. Error vacío = éxito; Error ∈ {`No aplica: falta offerId`, `Sin datos en Bridgecore (id_cat_estatus=0, id_tipo_tx=1)`, `Error consultando Bridgecore: <msg>`, `Error generando JSON: <msg>`, `Envío: <msg> - <body>`, `Cancelación: <msg> - <body>`}. Respuestas = `<status> <body>`.
+params: jobId:string(path):req
+
+---
+
 ## Extracto BC a SFTP `/api/v1/extracto-bc` · ExtractoBcController → ExtractoBcService, SftpService · ExtractoBcScheduler `0 0 12 * * *`
 
 Destino `sftp.*` (host 172.17.203.61:22, usuario LOGVAD, dir `/ecommerce_oms/`; dir vacío ⇒ home). Scheduler procesa día anterior completo (22-sep 12:00 ⇒ ventana 2026-09-21 00:00:00–23:59:59).
@@ -527,8 +552,8 @@ params: jobId:string(path):req
 ## Memoria `/api/v1/memoria` · MemoriaController → MemoriaService
 
 ### POST /api/v1/memoria/liberar
-desc: vacía `estatusPorJob`/`resultadosPorJob` de FulfillmentService, ReprocesoCompletoAsyncService, AvailabilityService, FachadaService, StatusOmsService, ApvService; Reenvío ⇒ detiene sin `join`, `SIN_INICIAR`, `/ejecutar` puede arrancar. Jobs vivos lanzan `CancellationException` en su siguiente iteración; encolados salen al arrancar. SQLite intacto. Llamada HTTP colgada sigue ocupando su hilo.
+desc: vacía `estatusPorJob`/`resultadosPorJob` de FulfillmentService, ReprocesoCompletoAsyncService, AvailabilityService, FachadaService, StatusOmsService, ApvService, DummyMkpService; Reenvío ⇒ detiene sin `join`, `SIN_INICIAR`, `/ejecutar` puede arrancar. Jobs vivos lanzan `CancellationException` en su siguiente iteración; encolados salen al arrancar. SQLite intacto. Llamada HTTP colgada sigue ocupando su hilo.
 req: nada.
-res: 200 {fulfillment, reprocesoCompleto, availability, fachada, fulfillmentTxt, apv: int jobs liberados, reenvio: EstatusReenvio}.
+res: 200 {fulfillment, reprocesoCompleto, availability, fachada, fulfillmentTxt, apv, dummyMkp: int jobs liberados, reenvio: EstatusReenvio}.
 params: —
 impl: `liberarMemoria()` + `verificarVigente(jobId)` en cada servicio; ReenvioService.esVigente (hiloCorrida)

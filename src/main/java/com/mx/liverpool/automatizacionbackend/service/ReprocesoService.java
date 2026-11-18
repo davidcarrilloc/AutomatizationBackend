@@ -16,6 +16,9 @@ import java.util.function.Function;
 @Service
 @Log4j2
 public class ReprocesoService {
+    static final String RUTA_I200 = "/oms/sl/I200?origen=ecom";
+    static final String RUTA_INT_200 = "/oms/v2/int/200";
+
     private final WebClient webClient;
     private final long pausaEnvioMs;
     private final long pausaLoteMs;
@@ -62,10 +65,11 @@ public class ReprocesoService {
     }
 
     public ReprocesoResult enviar(String requestOriginal, String trackingNumber) {
-        log.info("Enviando reproceso para tracking {}", trackingNumber);
+        String ruta = rutaDestino(trackingNumber);
+        log.info("Enviando reproceso para tracking {} a {}", trackingNumber, ruta);
         try {
             String response = webClient.post()
-                    .uri("/oms/sl/I200?origen=ecom")
+                    .uri(ruta)
                     .contentType(MediaType.APPLICATION_JSON)
                     .bodyValue(requestOriginal)
                     .retrieve()
@@ -80,6 +84,11 @@ public class ReprocesoService {
             log.error("Error enviando tracking {}: {}", trackingNumber, e.getMessage());
             return construirResultado(requestOriginal, trackingNumber, "\"error\": \"" + e.getMessage() + "\"");
         }
+    }
+
+    // Los tracking que empiezan con 98 no pasan por la fachada I200: van directo al int/200.
+    static String rutaDestino(String tracking) {
+        return tracking != null && tracking.strip().startsWith("98") ? RUTA_INT_200 : RUTA_I200;
     }
 
     private ReprocesoResult construirResultado(String requestOriginal, String trackingNumber, String response) {

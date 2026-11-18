@@ -20,7 +20,7 @@ Formato: `- [tema] hecho → consecuencia/regla`. Transversales primero, luego p
 ### Spring
 - [@Async] `this.metodo()` salta el proxy ⇒ síncrono. Auto-inyectar `@Lazy Self self` y llamar `self.procesarJob()`.
 - [scheduling] sin `spring.task.scheduling.pool.size` todos los `@Scheduled` comparten 1 hilo; `TxScheduler` (30/60 s) se congela tras una tarea lenta. Valor actual 4.
-- [executors] `fulfillmentExecutor` 1-2 hilos (solo `/fulfillment/reproceso`). `statusOmsExecutor` hilos virtuales (fulfillment-txt, fachada). `reenvioExecutor` hilo virtual (solo `/reenvio`). No compartir: un job esperaría detrás de otro.
+- [executors] `fulfillmentExecutor` 1-2 hilos (solo `/fulfillment/reproceso`). `statusOmsExecutor` hilos virtuales (fulfillment-txt, fachada, apv, dummy-mkp). `reenvioExecutor` hilo virtual (solo `/reenvio`). No compartir: un job esperaría detrás de otro.
 - [singleton] servicios son singleton + virtual threads ⇒ estado por petición (notas, filas enviadas, cols SKU) en variables LOCALES, nunca campos. `ReprocesoNodeRow` es `@Data` ⇒ usar `IdentityHashMap`, no `HashMap`.
 - [jobs] estado en `ConcurrentHashMap` en memoria; reinicio o `POST /memoria/liberar` los borra. Tras liberar, `verificarVigente(jobId)` (inicio de job, `publicarEstatus`, puts de resultados) lanza `CancellationException` para que el hilo huérfano no re-escriba el job. Reenvío: `liberarMemoria` no es `synchronized` (otros métodos pueden estar en `corrida.join()`), hace `corrida.complete(null)` y `hiloCorrida=null`; el hilo huérfano se corta con `esVigente()` y no inserta resultado ni bitácora.
 - [errores scheduler] schedulers antiguos no capturan; Spring se traga la excepción. Nuevos: try/catch y error en resumen.
@@ -102,6 +102,14 @@ Formato: `- [tema] hecho → consecuencia/regla`. Transversales primero, luego p
 - [URL] se quitó el `where=custom(fields(orderNumber=…))` del spec: no derivable y no aplica a GET por id. `expand` se conservan.
 - [modelo] reusa `EstatusFulfillment` (remisión = tracking).
 
+### Dummy MKP (DummyMkpService)
+- [código previo] `CancelacionAtgMkpService` + `/upload/cancelacionDevolucionMkpAtg` se borraron: corría la query BRIDGECORE en `atgCoreDataSource` y la query traía `--Enviar` / `-- ctp.*` que la truncaban. Query nueva `consulta.dummy-mkp-bridgecore` en `RemisionRepository` (bridgeCoreDataSource), sin `ctp.*`. No usar ATG en este flujo (decisión del usuario).
+- [curl] el notebook original daba por bueno todo envío con exit code 0 de curl, que es 0 aun con HTTP 4xx/5xx ⇒ "cancelaba" órdenes nunca creadas. Ahora solo 2xx; envío fallido no cancela; sin reintentos para no duplicar una orden creada con 504.
+- [plantilla] `resources/dummy/plantilla-dummy.xlsx` = solo hoja "Exportar Hoja de Trabajo" de dummies.xlsx (las hojas match2/query traían no_tarjeta y autorizaciones reales). Campos no reemplazados salen de su fila 2; cambiar un valor fijo = editar la plantilla, no código. La plantilla trae NBSP al final de los zip_code (el Python lo mandaba tal cual); `limpiarTexto` lo limpia solo en el JSON: espacios Unicode/control → espacio (rachas colapsadas), `\p{Cf}` (BOM, zero-width) fuera, `strip()`. El Excel de depuración conserva el valor crudo.
+- [varios SKUs] 1 fila/JSON por SKU con el mismo commercial_id (decisión del usuario) ⇒ el 2º envío puede rechazarse por duplicado; queda en la columna Error.
+- [remisión] query con la remisión tal cual; SOMS_REMISSION/commercial_id rellenado a 10 dígitos (como en la plantilla).
+- [executor] `statusOmsExecutor` (hilo virtual por job), no `fulfillmentExecutor`. El ritmo 50/10 s es por job: dos jobs simultáneos duplican la carga contra OMS.
+
 ### APV (ApvService)
 - [datasource] quinto datasource `apvDataSource` = USR_MONBRK@WLVPRO (172.17.212.129:1527, URL formato SID `@host:port:SID`, no `@//host/servicio`). Único con esquema `APPSALESMAN`.
 - [resend] una sola llamada con todas las remisiones (decisión del usuario), no una por fila ⇒ columna Resend repetida en todas las filas. Fallo del resend no aborta el job; marca COMPLETADO_CON_ERRORES.
@@ -133,3 +141,4 @@ Formato: `- [tema] hecho → consecuencia/regla`. Transversales primero, luego p
 - [reenvio-dia tipos] `remision`/`orden_venta` son NUMBER y `tracking_number`/`atg_ship_grp_id` VARCHAR2 ⇒ `UNION ALL` sin `TO_CHAR` truena con ORA-01790 (bad SQL grammar). El NUMBER pierde ceros a la izquierda ⇒ se rellena a 10 dígitos con `FulfillmentService.rellenarDiezDigitos`, igual que el flujo por Excel.
 - [tx.id_tipo_articulo] es NUMBER: `IN ('0', '1')` funciona por conversión implícita, pero un `CASE simple WHEN '0'` truena con ORA-00932 ⇒ en `CASE` comparar contra `0` sin comillas.
 - [llave BC reprocesos] `RemisionRepository.obtenerDetalleSkuRemision`/`obtenerClienteRemision` eligen la columna del WHERE por prefijo de la col B: `sg…` (sin importar mayúsculas, se manda tal cual) → `atg_ship_grp_id`, `98…` → `orden_venta`, resto → `remision`. Aplica a itemid-auto, email, firstname, conditionvariable2, completo y completo async ⇒ un flujo nuevo que use estas consultas hereda la regla. Una OV/SG con varias remisiones devuelve todas sus filas (sin manejo especial).
+- [I200 vs int/200] tracking que inicia con `98` → `ReprocesoService.rutaDestino` lo manda a `/oms/v2/int/200` (misma apikey, sin `origen`) en vez de I200; usado por `ReprocesoService.enviar` y `FachadaService.enviar` ⇒ todo envío nuevo a I200 debe usar `rutaDestino`, no escribir la ruta a mano.

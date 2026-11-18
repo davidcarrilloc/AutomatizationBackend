@@ -28,7 +28,8 @@ public class FachadaController {
 
     @Operation(summary = "Iniciar reproceso masivo contra la fachada I200",
             description = "Recibe un Excel de dos columnas (A: JSON del pedido, B: TrackingNumber) e inicia un reproceso " +
-                    "asíncrono. Cada JSON se envía tal cual (pass-through) a la fachada I200. El Excel se parte en bloques " +
+                    "asíncrono. Cada JSON se envía tal cual (pass-through) a la fachada I200; si el TrackingNumber inicia con 98 " +
+                    "se envía a /oms/v2/int/200 en lugar de I200. El Excel se parte en bloques " +
                     "(fachada.tamano-bloque, default 1 000) y se procesan hasta W = availableProcessors × fachada.factor " +
                     "bloques en paralelo con hilos virtuales, sin pausas entre envíos. La fila que da error se manda al " +
                     "final de la cola de su bloque y se reintenta hasta fachada.max-rondas. Devuelve un jobId para consultar " +

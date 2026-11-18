@@ -18,7 +18,6 @@ import org.springframework.web.multipart.MultipartFile;
 public class UploadController {
     private final FileService fileService;
     private final ExecutePythonService executePythonService;
-    private final CancelacionAtgMkpService cancelacionAtgMkpService;
     private final CodigoDigitalService codigoDigitalService;
     private final ExcelService excelService;
 
@@ -42,18 +41,6 @@ public class UploadController {
         if (isNotCSVFile(file.getOriginalFilename())) throw new IllegalArgumentException("Tipo de archivo inválido. Solo se permiten archivos CSV.");
         fileService.moveFileToProcessingAtgDirectory(file);
         return ResponseEntity.ok(executePythonService.executeAtgScript());
-    }
-
-    @Operation(summary = "Cancelación/devolución marketplace ATG",
-            description = "Recibe un Excel con las columnas requeridas (0,1,2,7) y procesa las cancelaciones/devoluciones de marketplace ATG. Devuelve el resultado del proceso.")
-    @ApiResponse(responseCode = "200", description = "Resultado del proceso de cancelaciones/devoluciones")
-    @PostMapping(value = "/cancelacionDevolucionMkpAtg", consumes = {"multipart/form-data"})
-    public ResponseEntity<?> uploadCancelacionDevolucionMkpAtg(
-            @Parameter(description = "Archivo Excel (.xlsx/.xls) con las cancelaciones/devoluciones") @RequestParam("file") MultipartFile file) {
-        if (isNotExcelFile(file.getOriginalFilename())) throw new IllegalArgumentException("Tipo de archivo inválido. Solo se permiten archivos Excel.");
-        return ResponseEntity.ok(cancelacionAtgMkpService.executeCancelacionesProcess(
-                excelService.fromExcelToListOfRows(file, "0","0,1,2,7")
-        ));
     }
 
     @Operation(summary = "Consultar códigos digitales",

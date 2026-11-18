@@ -36,6 +36,9 @@ build/
 # Datos descargados del SFTP en tiempo de ejecución
 datos-sl/
 
+# Salida de los jobs de dummies (Excel de depuración y JSON enviados a OMS)
+dummy-mkp/
+
 ### extracto_oms.sh
 extracto_oms.properties
 liverpool_sl/

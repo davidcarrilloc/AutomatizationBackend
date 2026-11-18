@@ -1,5 +1,6 @@
 package com.mx.liverpool.automatizacionbackend.repository;
 
+import com.mx.liverpool.automatizacionbackend.model.AtgMarketplace;
 import com.mx.liverpool.automatizacionbackend.model.ClienteRemision;
 import com.mx.liverpool.automatizacionbackend.model.DetalleSkuRemision;
 import com.mx.liverpool.automatizacionbackend.model.Remision;
@@ -30,6 +31,7 @@ public class RemisionRepository {
     private final String consultaBcNoOms;
     private final String consultaBcNoOmsOrdenVenta;
     private final String consultaBcNoOmsShippingGroup;
+    private final String consultaDummyMkp;
 
     @Autowired
     public RemisionRepository(@Qualifier("bridgeCoreDataSource") DataSource namedParameterJdbcTemplate,
@@ -42,7 +44,8 @@ public class RemisionRepository {
                                    @Value("${consulta.cliente-shipping-group}") String consultaClienteShippingGroup,
                                    @Value("${consulta.bc-nooms}") String consultaBcNoOms,
                                    @Value("${consulta.bc-nooms-orden-venta}") String consultaBcNoOmsOrdenVenta,
-                                   @Value("${consulta.bc-nooms-shipping-group}") String consultaBcNoOmsShippingGroup) {
+                                   @Value("${consulta.bc-nooms-shipping-group}") String consultaBcNoOmsShippingGroup,
+                                   @Value("${consulta.dummy-mkp-bridgecore}") String consultaDummyMkp) {
         this.namedParameterJdbcTemplate = new NamedParameterJdbcTemplate(namedParameterJdbcTemplate);
         this.consultaCobroRemision = consultaCobroRemision;
         this.consultaDetalleSkuRemision = consultaDetalleSkuRemision;
@@ -54,6 +57,16 @@ public class RemisionRepository {
         this.consultaBcNoOms = consultaBcNoOms;
         this.consultaBcNoOmsOrdenVenta = consultaBcNoOmsOrdenVenta;
         this.consultaBcNoOmsShippingGroup = consultaBcNoOmsShippingGroup;
+        this.consultaDummyMkp = consultaDummyMkp;
+    }
+
+    // Un renglón por SKU de la remisión cobrada (id_cat_estatus=0, id_tipo_tx=1).
+    public List<AtgMarketplace> obtenerDatosDummy(String remision) {
+        return namedParameterJdbcTemplate.query(
+                consultaDummyMkp,
+                new MapSqlParameterSource().addValue("remision", remision, Types.VARCHAR),
+                new BeanPropertyRowMapper<>(AtgMarketplace.class)
+        );
     }
 
     public List<Remision> obtenerCobroRemisiones(List<String> remisiones) {
